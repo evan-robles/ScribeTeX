@@ -65,6 +65,6 @@ def test_build_plists_sets_path_env(tmp_path):
 def test_preflight_flags_missing_claude(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path)
     tmp_path.mkdir(exist_ok=True)
-    monkeypatch.setattr(install.shutil, "which", lambda x: None)
+    monkeypatch.setattr(install.shutil, "which", lambda x, path=None: None)
     problems = install.preflight(cfg, "claude", str(tmp_path))
     assert any("claude" in p.lower() for p in problems)

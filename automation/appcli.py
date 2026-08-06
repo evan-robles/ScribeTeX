@@ -6,7 +6,9 @@ caller always receives parseable JSON.
 """
 from __future__ import annotations
 import argparse
+import contextlib
 import datetime as _dt
+import io
 import json
 import shutil
 import sys
@@ -104,6 +106,17 @@ def _process_path(cfg, src_path, *, process_fn=None) -> dict:
     return {"ok": True, "processed": process_fn(cfg)}
 
 
+@contextlib.contextmanager
+def _suppress_stdout():
+    """Swallow stdout from a wrapped call so only our JSON reaches the caller.
+
+    install.main prints human-readable status lines; if those hit stdout they
+    corrupt the single-JSON-object contract the Swift app decodes.
+    """
+    with contextlib.redirect_stdout(io.StringIO()):
+        yield
+
+
 def _emit(obj) -> int:
     print(json.dumps(obj))
     return 0
@@ -176,11 +189,22 @@ def _dispatch(args) -> int:
         return _emit({"ok": True, "processed": _ingest.process_inbox(cfg)})
     if args.cmd == "install":
         cfg = _load()
-        rc = _install.main([])
+        # Report preflight problems as JSON (never as loose stdout text that
+        # would corrupt the caller's JSON parse).
+        repo_root = str(Path(__file__).resolve().parents[1])
+        problems = _install.preflight(cfg, cfg["claude_bin"], repo_root)
+        if problems:
+            return _emit({"ok": False, "watcher_running": False,
+                          "error": "; ".join(problems)})
+        # Suppress install.main's human-readable stdout so only our JSON is emitted.
+        with _suppress_stdout():
+            rc = _install.main([])
         paths = _install.plist_paths(cfg)
-        return _emit({"ok": rc == 0, "watcher_running": paths["watch"].exists() and paths["sweep"].exists()})
+        running = paths["watch"].exists() and paths["sweep"].exists()
+        return _emit({"ok": rc == 0 and running, "watcher_running": running})
     if args.cmd == "uninstall":
-        _install.main(["--uninstall"])
+        with _suppress_stdout():
+            _install.main(["--uninstall"])
         return _emit({"ok": True, "watcher_running": False})
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 

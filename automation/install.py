@@ -80,8 +80,10 @@ def _inject_env(xml, repo_root, extra_path=None):
 
 
 def preflight(cfg, claude_bin, repo_root) -> list:
+    from .envpath import augmented_path
     problems = []
-    if shutil.which(claude_bin) is None and not Path(claude_bin).exists():
+    if (shutil.which(claude_bin, path=augmented_path()) is None
+            and not Path(claude_bin).exists()):
         problems.append(f"claude CLI not found: {claude_bin}")
     if not Path(cfg["inbox_dir"]).exists():
         problems.append(f"inbox dir does not exist: {cfg['inbox_dir']}")
