@@ -1,5 +1,6 @@
 """FileSource: render a local PDF/image note export to page PNGs."""
 from __future__ import annotations
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -21,7 +22,13 @@ class FileSource:
             raise FileNotFoundError(f"file not found: {path}")
         ext = path.suffix.lower()
         if ext in _IMAGE_EXTS:
-            return [path]
+            # Stage the image into a scribetex render dir so downstream tools
+            # (e.g. save_figure) can trust the page path is under a known root
+            # rather than an arbitrary caller-supplied location.
+            staged_dir = Path(tempfile.mkdtemp(prefix="scribetex_"))
+            staged = staged_dir / f"p1{ext}"
+            shutil.copy2(path, staged)
+            return [staged]
         if ext != ".pdf":
             raise ValueError(
                 f"unsupported extension '{ext}'; supported: pdf, png, jpg, jpeg, heic"

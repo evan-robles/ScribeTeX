@@ -21,11 +21,19 @@ def test_goodnotes_alias_is_file_source():
     assert isinstance(get_source("goodnotes"), FileSource)
 
 
-def test_heic_image_passthrough(tmp_path):
+def test_heic_image_staged_into_scribetex_temp(tmp_path):
     img = tmp_path / "note.heic"
-    img.write_bytes(b"\x00\x00\x00\x18ftypheic")  # stub; path handling under test
+    payload = b"\x00\x00\x00\x18ftypheic"  # stub; path handling under test
+    img.write_bytes(payload)
     out = FileSource().fetch_pages(str(img))
-    assert out == [img]
+    assert len(out) == 1
+    staged = out[0]
+    # Staged into a scribetex_* render dir (not the original path), extension
+    # preserved, content copied — so downstream save_figure trusts the source.
+    assert staged != img
+    assert staged.parent.name.startswith("scribetex_")
+    assert staged.suffix == ".heic"
+    assert staged.read_bytes() == payload
 
 
 def test_pdf_renders_one_png_per_page(tmp_path):
@@ -36,11 +44,17 @@ def test_pdf_renders_one_png_per_page(tmp_path):
     assert all(p.suffix == ".png" and p.exists() for p in pngs)
 
 
-def test_single_image_passthrough(tmp_path):
+def test_single_image_staged_into_scribetex_temp(tmp_path):
     img = tmp_path / "note.png"
-    img.write_bytes(b"\x89PNG\r\n\x1a\n")  # header only; path handling under test
+    payload = b"\x89PNG\r\n\x1a\n"  # header only; path handling under test
+    img.write_bytes(payload)
     out = FileSource().fetch_pages(str(img))
-    assert out == [img]
+    assert len(out) == 1
+    staged = out[0]
+    assert staged != img
+    assert staged.parent.name.startswith("scribetex_")
+    assert staged.suffix == ".png"
+    assert staged.read_bytes() == payload
 
 
 def test_missing_file_raises(tmp_path):
