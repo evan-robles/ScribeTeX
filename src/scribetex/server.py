@@ -180,8 +180,9 @@ def _write_section(course: str, section_title: str, subsection_title: str,
         )
     except DuplicateNoteError as e:
         return {"written": False,
-                "error": f"a note labelled {e.date_iso} already exists; choose "
-                         f"on_duplicate='replace' or 'append', or skip."}
+                "error": f"a note for section '{e.section_title}' / subsection "
+                         f"'{e.subsection_title}' on {e.date_iso} already exists; "
+                         f"choose on_duplicate='replace' or 'append', or skip."}
     except MalformedDocumentError as e:
         return {"written": False, "error": f"malformed document: {e}"}
 
@@ -262,9 +263,9 @@ def write_section(course: str, section_title: str, subsection_title: str,
         course_number: the course NUMBER (e.g. "DEPT 10100") for the title page
             and running header; used only when scaffolding a new course. If
             omitted, a digit-bearing token from the course name is used.
-        on_duplicate: "warn" (default; refuse if a note with that date-label
-            exists), "replace" (collapse that date's notes to one), or "append"
-            (add another).
+        on_duplicate: "warn" (default; refuse if a note with the same date +
+            section + subsection already exists), "replace" (collapse that exact
+            note to one), or "append" (add another).
     Returns {"written": true, target_path, diff_summary, compiled: false}, or
     {"written": false, "error": ...} on a duplicate/malformed document. The
     server is write-only and never compiles LaTeX."""
