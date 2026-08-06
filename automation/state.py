@@ -54,9 +54,20 @@ def acquire_lock(lock_file, pid=None, pid_alive=None) -> bool:
         except Exception:
             holder = -1
         if holder == pid or not pid_alive(holder):
-            # stale (or ours): reclaim
-            p.write_text(str(pid))
-            return True
+            # Stale (or ours): atomically reclaim. Unlink then O_EXCL-recreate,
+            # so a concurrent acquirer between our failed open and now cannot be
+            # clobbered by a plain overwrite (TOCTOU).
+            try:
+                os.unlink(str(p))
+            except FileNotFoundError:
+                pass  # someone else already cleared it
+            try:
+                fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, str(pid).encode())
+                os.close(fd)
+                return True
+            except FileExistsError:
+                return False  # a concurrent process won the reclaim; we didn't
         return False
 
 

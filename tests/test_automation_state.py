@@ -47,3 +47,14 @@ def test_release_lock(tmp_path):
     state.release_lock(lf)
     assert not lf.exists()
     state.release_lock(lf)  # idempotent, no raise
+
+
+def test_lock_reclaim_atomicity(tmp_path):
+    lf = tmp_path / "ingest.lock"
+    # Acquire with pid 111 (alive)
+    assert state.acquire_lock(lf, pid=111, pid_alive=lambda pid: True) is True
+    assert lf.read_text().strip() == "111"
+    # Reclaim with pid 222 (111 is now dead)
+    assert state.acquire_lock(lf, pid=222, pid_alive=lambda pid: False) is True
+    # Verify lockfile contains the NEW pid (atomicity: no clobbering by concurrent writes)
+    assert lf.read_text().strip() == "222"
