@@ -68,6 +68,26 @@ def _status_dict(cfg, *, plist_paths_fn=None, which_fn=None, now_fn=None) -> dic
     }
 
 
+def _needs_review_items(cfg) -> list:
+    nr = _config.needs_review_dir(cfg)
+    if not nr.exists():
+        return []
+    items = []
+    for p in sorted(nr.iterdir()):
+        if not p.is_file() or p.suffix == ".txt":
+            continue
+        review = nr / f"{p.name}.review.txt"
+        error = nr / f"{p.name}.error.txt"
+        if review.exists():
+            kind, reason = "ambiguous", review.read_text().strip()
+        elif error.exists():
+            kind, reason = "error", error.read_text().strip()
+        else:
+            kind, reason = "unknown", None
+        items.append({"name": p.name, "path": str(p), "reason": reason, "kind": kind})
+    return items
+
+
 def _emit(obj) -> int:
     print(json.dumps(obj))
     return 0
@@ -77,11 +97,14 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="ScribeTeX app JSON bridge.")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
+    sub.add_parser("needs-review")
     args = ap.parse_args(argv)
 
     cfg = _load()
     if args.cmd == "status":
         return _emit(_status_dict(cfg))
+    if args.cmd == "needs-review":
+        return _emit({"ok": True, "items": _needs_review_items(cfg)})
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 
