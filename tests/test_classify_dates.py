@@ -13,7 +13,7 @@ def test_parse_valid_dates(raw, iso):
     assert parse_date(raw) == iso
 
 
-@pytest.mark.parametrize("raw", ["3/4", "", "not a date", "someday"])
+@pytest.mark.parametrize("raw", ["3/4", "10/3", "", "not a date", "someday"])
 def test_parse_rejects_ambiguous_or_bad(raw):
     assert parse_date(raw) is None
 

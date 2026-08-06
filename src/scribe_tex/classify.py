@@ -21,7 +21,7 @@ def parse_date(raw: str) -> str | None:
     # Require a 4-digit or 2-digit year token to be present somewhere.
     if not re.search(r"\d{2,4}", raw):
         return None
-    # Reject slash dates with no year, e.g. "3/4".
+    # Reject two-part slash dates with no year, e.g. "10/3", "12/25".
     slash = raw.split("/")
     if len(slash) == 2:
         return None
