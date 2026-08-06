@@ -49,6 +49,38 @@ def test_release_lock(tmp_path):
     state.release_lock(lf)  # idempotent, no raise
 
 
+def test_error_count_defaults_zero(tmp_path):
+    ef = tmp_path / ".scribetex" / "errors.json"
+    assert state.get_error_count(ef, "k1") == 0
+
+
+def test_bump_error_count_increments_and_persists(tmp_path):
+    ef = tmp_path / ".scribetex" / "errors.json"
+    assert state.bump_error_count(ef, "k1") == 1
+    assert state.bump_error_count(ef, "k1") == 2
+    assert state.get_error_count(ef, "k1") == 2
+    # a different key is tracked independently
+    assert state.get_error_count(ef, "k2") == 0
+    assert state.bump_error_count(ef, "k2") == 1
+    assert state.get_error_count(ef, "k1") == 2
+
+
+def test_error_count_malformed_file_is_zero(tmp_path):
+    ef = tmp_path / "errors.json"
+    ef.write_text("{not json")
+    assert state.get_error_count(ef, "k1") == 0
+    # bump should still work despite the malformed prior contents
+    assert state.bump_error_count(ef, "k1") == 1
+
+
+def test_clear_error_count(tmp_path):
+    ef = tmp_path / "errors.json"
+    state.bump_error_count(ef, "k1")
+    state.bump_error_count(ef, "k1")
+    state.clear_error_count(ef, "k1")
+    assert state.get_error_count(ef, "k1") == 0
+
+
 def test_lock_reclaim_atomicity(tmp_path):
     lf = tmp_path / "ingest.lock"
     # Acquire with pid 111 (alive)

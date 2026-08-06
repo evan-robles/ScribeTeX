@@ -28,6 +28,41 @@ def mark_seen(state_file, key) -> None:
     p.write_text(json.dumps(sorted(seen)))
 
 
+def _load_error_counts(error_file) -> dict:
+    p = Path(error_file)
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text())
+        if not isinstance(data, dict):
+            return {}
+        return {str(k): int(v) for k, v in data.items()}
+    except Exception:
+        return {}
+
+
+def get_error_count(error_file, key) -> int:
+    return _load_error_counts(error_file).get(key, 0)
+
+
+def bump_error_count(error_file, key) -> int:
+    p = Path(error_file)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    counts = _load_error_counts(p)
+    counts[key] = counts.get(key, 0) + 1
+    p.write_text(json.dumps(counts))
+    return counts[key]
+
+
+def clear_error_count(error_file, key) -> None:
+    p = Path(error_file)
+    counts = _load_error_counts(p)
+    if key in counts:
+        del counts[key]
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(counts))
+
+
 def _default_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)

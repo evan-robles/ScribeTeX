@@ -62,5 +62,9 @@ def state_file(cfg) -> Path:
     return _sub(cfg) / "seen.json"
 
 
+def error_file(cfg) -> Path:
+    return _sub(cfg) / "errors.json"
+
+
 def lock_file(cfg) -> Path:
     return _sub(cfg) / "ingest.lock"

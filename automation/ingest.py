@@ -13,6 +13,10 @@ from .prompt import build_prompt, parse_result
 
 _IGNORE_DIRS = {"Done", "NeedsReview", ".scribetex"}
 
+# Cap on consecutive error outcomes for the same file identity before it is
+# dead-lettered to NeedsReview/ instead of being retried forever.
+MAX_ERROR_ATTEMPTS = 3
+
 
 def invoke_claude(note_path, claude_bin, run_fn=None, timeout=1800) -> str:
     run_fn = run_fn or subprocess.run
@@ -30,10 +34,14 @@ def invoke_claude(note_path, claude_bin, run_fn=None, timeout=1800) -> str:
         return f'SCRIBETEX_RESULT: {{"status":"error","reason":"invoke failed: {e}"}}'
 
 
+def _as_str(s):
+    return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
 def notify(title, message, run_fn=None) -> None:
     run_fn = run_fn or subprocess.run
     try:
-        script = f'display notification {message!r} with title {title!r}'
+        script = f"display notification {_as_str(message)} with title {_as_str(title)}"
         run_fn(["osascript", "-e", script], capture_output=True, text=True, timeout=10)
     except Exception:
         pass
@@ -58,6 +66,17 @@ def route_file(note_path, result, cfg, now_fn=None) -> str:
         )
         return "ambiguous"
     return "error"  # leave in place
+
+
+def give_up_file(note_path, result, cfg) -> None:
+    """Dead-letter a persistently-erroring file to NeedsReview/ with a sidecar."""
+    note = Path(note_path)
+    nr = _config.needs_review_dir(cfg)
+    nr.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(note), str(nr / note.name))
+    (nr / f"{note.name}.error.txt").write_text(
+        f"Gave up after repeated errors: {result.get('reason', 'unspecified')}\n"
+    )
 
 
 def _candidates(cfg):
@@ -86,6 +105,7 @@ def process_inbox(cfg, invoke_fn=None, notify_fn=None, ready_fn=None,
     results = []
     try:
         sf = _config.state_file(cfg)
+        ef = _config.error_file(cfg)
         seen = state.load_seen(sf)
         settle = cfg["settle_seconds"]
         for note in _candidates(cfg):
@@ -97,9 +117,24 @@ def process_inbox(cfg, invoke_fn=None, notify_fn=None, ready_fn=None,
             stdout = invoke_fn(str(note), cfg["claude_bin"])
             result = parse_result(stdout)
             outcome = route_file(note, result, cfg, now_fn=now_fn)
+
             if outcome in ("filed", "ambiguous"):
                 state.mark_seen(sf, key)
-            _notify_outcome(notify_fn, note, result, outcome)
+                state.clear_error_count(ef, key)
+                _notify_outcome(notify_fn, note, result, outcome)
+            else:  # error
+                attempts = state.bump_error_count(ef, key)
+                if attempts >= MAX_ERROR_ATTEMPTS:
+                    give_up_file(note, result, cfg)
+                    state.mark_seen(sf, key)
+                    outcome = "gave_up"
+                    _notify_outcome(notify_fn, note, result, outcome)
+                elif attempts == 1:
+                    # Only notify on the first error attempt; suppress the
+                    # middle retries so a persistently-failing note doesn't
+                    # spam a notification on every sweep/watch trigger.
+                    _notify_outcome(notify_fn, note, result, outcome)
+
             results.append({"file": note.name, "outcome": outcome,
                             "result": result})
     finally:
@@ -116,6 +151,10 @@ def _notify_outcome(notify_fn, note, result, outcome):
     elif outcome == "ambiguous":
         notify_fn("ScribeTeX needs review",
                   f"{note.name}: {result.get('reason', 'ambiguous')}")
+    elif outcome == "gave_up":
+        notify_fn("ScribeTeX gave up",
+                  f"{note.name}: repeated errors, moved to NeedsReview "
+                  f"({result.get('reason', 'error')})")
     else:
         notify_fn("ScribeTeX error",
                   f"{note.name}: {result.get('reason', 'error')}")

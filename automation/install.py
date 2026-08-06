@@ -39,6 +39,9 @@ def plist_paths(cfg) -> dict:
     }
 
 
+_DEFAULT_PATH = "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+
 def build_plists(cfg, python_bin, repo_root) -> dict:
     inbox = str(cfg["inbox_dir"])
     log = str(cfg["log_file"])
@@ -53,17 +56,25 @@ def build_plists(cfg, python_bin, repo_root) -> dict:
     sweep = render_plist(SWEEP_LABEL, args("--sweep"),
                          start_interval=int(cfg["sweep_seconds"]), log_file=log)
     # Add WorkingDirectory + PYTHONPATH so automation + scribetex import.
-    watch = _inject_env(watch, repo_root)
-    sweep = _inject_env(sweep, repo_root)
+    # Also resolve the claude binary's directory so launchd's minimal PATH
+    # still finds a bare `claude` (launchd processes do not inherit the
+    # user's shell PATH, so without this ingest silently fails to invoke it).
+    claude_path = shutil.which(cfg["claude_bin"]) or cfg["claude_bin"]
+    resolved_dir = Path(claude_path).parent
+    claude_dir = str(resolved_dir) if str(resolved_dir) not in ("", ".") else None
+    watch = _inject_env(watch, repo_root, extra_path=claude_dir)
+    sweep = _inject_env(sweep, repo_root, extra_path=claude_dir)
     paths = plist_paths(cfg)
     return {paths["watch"]: watch, paths["sweep"]: sweep}
 
 
-def _inject_env(xml, repo_root):
+def _inject_env(xml, repo_root, extra_path=None):
     data = plistlib.loads(xml.encode())
     data["WorkingDirectory"] = str(repo_root)
+    path_parts = ([extra_path] if extra_path else []) + [_DEFAULT_PATH]
     data["EnvironmentVariables"] = {
         "PYTHONPATH": f"{repo_root}:{repo_root}/src",
+        "PATH": ":".join(path_parts),
     }
     return plistlib.dumps(data).decode()
 

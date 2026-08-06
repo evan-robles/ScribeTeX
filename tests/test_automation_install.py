@@ -51,6 +51,17 @@ def test_build_plists_targets_and_content(tmp_path):
     assert "/repo" in watch_xml        # PYTHONPATH/WorkingDirectory
 
 
+def test_build_plists_sets_path_env(tmp_path):
+    cfg = _cfg(tmp_path)
+    plists = install.build_plists(cfg, "/usr/bin/python3", "/repo")
+    for xml in plists.values():
+        data = plistlib.loads(xml.encode())
+        env = data["EnvironmentVariables"]
+        assert "PYTHONPATH" in env
+        assert "PATH" in env
+        assert "/opt/homebrew/bin" in env["PATH"]
+
+
 def test_preflight_flags_missing_claude(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path)
     tmp_path.mkdir(exist_ok=True)
