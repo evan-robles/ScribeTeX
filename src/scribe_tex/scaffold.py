@@ -1,4 +1,4 @@
-"""Create a new per-course LaTeX document."""
+"""Create a new per-course LaTeX document (topic-based, full title page)."""
 from __future__ import annotations
 from pathlib import Path
 
@@ -7,22 +7,42 @@ from .placement import ENTRIES_START, ENTRIES_END
 from .classify import course_slug
 
 DEFAULT_FOOTER_NAME = "Robles"
+DEFAULT_AUTHOR = "Evan S. Robles"
+DEFAULT_AFFILIATION = "University of Chicago"
 
 
 def build_main_tex(course_name: str, course_number: str,
+                   author: str = DEFAULT_AUTHOR,
+                   affiliation: str = DEFAULT_AFFILIATION,
                    footer_name: str = DEFAULT_FOOTER_NAME) -> str:
-    # The preamble already issues \pagestyle{main}, so the document body does
-    # not repeat it.
+    """Full standalone document matching the canonical template: preamble, a
+    titlepage (course name + number + author + affiliation), a plain-styled
+    table of contents, and an empty topic-section ENTRIES region."""
     preamble = render_preamble(footer_name=footer_name, course_number=course_number)
     return (
         preamble
         + "\n\\begin{document}\n\n"
-        + f"\\title{{{course_name} Notes}}\n"
-        + f"\\author{{{footer_name}}}\n"
-        + "\\date{}\n"
-        + "\\maketitle\n\n"
-        + "\\renewcommand{\\contentsname}{Topics}\n"
+        + "\\begin{titlepage}\n"
+        + "    \\thispagestyle{empty}\n\n"
+        + "    \\centering\n\n"
+        + "    \\vspace*{2cm}\n\n"
+        + f"    {{\\Huge\\bfseries {course_name}\\par}}\n\n"
+        + "    \\vspace{0.5cm}\n\n"
+        + f"    {{\\Large {course_number}\\par}}\n\n"
+        + "    \\vspace{0.8cm}\n\n"
+        + "    \\rule{0.6\\textwidth}{0.6pt}\n\n"
+        + "    \\vspace{0.8cm}\n\n"
+        + f"    {{\\Large {author}\\par}}\n\n"
+        + "    \\vspace{0.3cm}\n\n"
+        + "    {\\large \\today \\par}\n\n"
+        + "    \\vfill\n\n"
+        + "    \\textit{\n"
+        + f"    {affiliation}\n"
+        + "    }\n\n"
+        + "\\end{titlepage}\n"
+        + "\\newpage\n\n"
         + "\\tableofcontents\n"
+        + "\\thispagestyle{plain}\n"
         + "\\newpage\n\n"
         + f"{ENTRIES_START}\n{ENTRIES_END}\n"
         + "\\end{document}\n"
@@ -30,6 +50,8 @@ def build_main_tex(course_name: str, course_number: str,
 
 
 def scaffold_course(root: Path, course_name: str, course_number: str,
+                    author: str = DEFAULT_AUTHOR,
+                    affiliation: str = DEFAULT_AFFILIATION,
                     footer_name: str = DEFAULT_FOOTER_NAME) -> Path:
     """Create a new course folder with main.tex plus the sidecar files its
     preamble references (an empty main.bib for biblatex, and an ExtFiles/
@@ -39,8 +61,10 @@ def scaffold_course(root: Path, course_name: str, course_number: str,
     if main_tex.exists():
         raise FileExistsError(main_tex)
     course_dir.mkdir(parents=True, exist_ok=True)
-    main_tex.write_text(build_main_tex(course_name, course_number, footer_name),
-                        encoding="utf-8")
+    main_tex.write_text(
+        build_main_tex(course_name, course_number, author, affiliation, footer_name),
+        encoding="utf-8",
+    )
     # Sidecars required by the preamble.
     bib = course_dir / "main.bib"
     if not bib.exists():

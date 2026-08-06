@@ -9,13 +9,16 @@ from .discovery import known_courses
 from .transcription_brief import build_brief
 from .sources.base import get_source
 from .scaffold import scaffold_course
-from .writer import insert_section, DuplicateDateError, MalformedDocumentError
-from .placement import plan_insertion
+from .writer import insert_note, DuplicateNoteError, MalformedDocumentError
+from .placement import existing_sections, existing_note_labels
 
 SERVER_INSTRUCTIONS = r"""
-scribe-tex turns a handwritten note export (PDF or image) into a typeset LaTeX
-section, filed into a per-course document — one dated \section per class, kept in
-date order, matching a fixed course-notes template.
+scribe-tex turns a handwritten note export (PDF or image, e.g. from GoodNotes or
+another iPad app) into typeset LaTeX, filed into a per-course document. Notes are
+organized BY TOPIC: content lives under top-level \section headings (e.g.
+"Characterization Techniques", "Reaction Mechanisms") and each note becomes one
+or more \subsection under a chosen section. The document uses a fixed template
+(full title page + table of contents + the course preamble).
 
 YOU (the calling agent) do the vision transcription. This server never runs a
 model, never makes a network call, and never compiles LaTeX; it only renders
@@ -23,58 +26,62 @@ pages to images, tells you how to transcribe, and does the deterministic
 file/LaTeX placement. Follow this exact workflow:
 
 STEP 1 — prepare_note(source="file", ref="<path to the PDF/image>")
-  Returns: page_images (PNG paths), a transcription `brief`, the notes_root, and
-  known_courses (existing course documents). If it returns an {"error": ...},
-  report it and stop.
+  Use source="file" for any local export; source="goodnotes" is an alias for the
+  same (GoodNotes PDF/PNG/JPG/HEIC exports). Returns: page_images, a
+  transcription `brief`, notes_root, and known_courses. On {"error": ...}, report
+  it and stop.
 
 STEP 2 — TRANSCRIBE (you, from the page images)
-  Read EVERY page image and transcribe the note to LaTeX, obeying the `brief`:
-  - Output the SECTION BODY ONLY — no preamble, no \documentclass, no
+  Read EVERY page image and transcribe to LaTeX, obeying the `brief`:
+  - Output the BODY ONLY — no preamble, no \documentclass, no
     \begin{document}/\end{document}, and DO NOT write the \section or \label
-    line (write_section adds those).
-  - Use $...$ / align / equation for math, \subsection{...} for each topic.
-  - Use ONLY the packages/macros the brief lists as available (the template
-    loads amsmath, mathtools, physics, mhchem, siunitx, tikz, braket, biblatex,
-    etc.). \ce{...} (mhchem) is available for chemistry; use it for formulae and
-    reactions.
-  - Transcribe faithfully. Hand-drawn diagrams (spectra, mechanism arrows,
-    skeletal structures) that you cannot reproduce exactly should be rendered as
-    faithful prose + equations (or chemfig/tikz only if clean); NEVER invent
-    content that is not on the page. When you finish, tell the user plainly which
-    drawings were described rather than reproduced.
-  - Also EXTRACT from the note: a course hint and the class date (look for a
-    written date header). If either is missing or ambiguous, ASK THE USER — do
-    not guess a course or a date.
+    line (the server adds those).
+  - Structure the note's content with \subsection{...} (and lower) per topic.
+  - Use $...$ / align / equation for math. \ce{...} (mhchem) is available.
+  - Use ONLY the packages/macros the brief lists as available.
+  - Transcribe faithfully; NEVER invent content not on the page. Render
+    hand-drawn diagrams you cannot reproduce as faithful prose + equations, and
+    tell the user which drawings were described rather than reproduced.
+  - Also DECIDE and EXTRACT: a course hint; a top-level SECTION title naming the
+    note's overall theme; a concise SUBSECTION title for this note; and the class
+    date. If the course, section, or date is missing/ambiguous, ASK THE USER —
+    do not guess.
 
-STEP 3 — resolve_placement(course_hint="<hint>", date="<date>")
-  Returns the resolved course, course_status ("existing"/"new"), target_path,
-  date_iso, date_display, insert_position, duplicate, and match_confidence.
-  SHOW the user this result — course, date, target file, new-vs-existing, and
-  whether that date already exists — and get their confirmation BEFORE writing.
-  If match_confidence is "low", if the course is "new" (you're about to create a
-  folder), or if date_iso is null, resolve the ambiguity with the user first.
+STEP 3 — resolve_placement(course_hint=..., section_hint=..., date=...)
+  Returns the resolved course, course_status ("existing"/"new"), the target
+  section and section_status ("existing"/"new"), target_path, date_iso,
+  duplicate (a note with that date-label already exists), match_confidence, and
+  existing_sections (to help you reuse a section rather than duplicate one). SHOW
+  the user: course, chosen section (new vs existing), date, target file, and any
+  duplicate — and get confirmation BEFORE writing. If confidence is "low", the
+  course/section is "new", or date_iso is null, resolve it with the user first.
 
-STEP 4 — write_section(course=..., date=..., latex_body=..., on_duplicate="warn")
-  Only after the user confirms. Scaffolds the course if new (creating main.tex
-  with the full template preamble + title page + "Topics" TOC, plus a main.bib
-  and ExtFiles/ so it compiles standalone), then inserts your section in date
-  order. Returns {"written": true, target_path, diff_summary, compiled: false}.
-  On a duplicate date it returns {"written": false, "error": ...}: relay the
-  conflict and ask the user whether to use on_duplicate="replace" (collapse to
-  one section for that date), "append" (add a second), or skip.
+STEP 4 — write_section(course=..., course_number=..., section_title=...,
+                       subsection_title=..., latex_body=..., date=...,
+                       on_duplicate="warn")
+  Only after the user confirms. Pass the course NAME as `course` (e.g. "Organic
+  Chemistry") and the course NUMBER as `course_number` (e.g. "CHEM 22100") — both
+  go on the title page/header when a new course is scaffolded. Scaffolds the
+  course if new (full template: title page + TOC + preamble, plus main.bib and
+  ExtFiles/ so it compiles standalone), then adds your \subsection under
+  section_title — appending within it if it exists, or creating that \section at
+  the end if not. Returns
+  {"written": true, target_path, diff_summary, compiled: false}. If a note with
+  the same date-label already exists it returns {"written": false, "error": ...}:
+  relay the conflict and ask whether to use on_duplicate="replace" (collapse to
+  one), "append" (add another), or skip.
 
 AFTER WRITING
-  Report the method provenance honestly: what you transcribed, which drawings
-  were described vs. reproduced, and the exact target_path. The server is
-  WRITE-ONLY — it does not compile. If the user wants a PDF, offer to compile
-  the course's main.tex yourself with a local TeX toolchain (pdflatex → biber →
-  pdflatex twice, because the template uses biblatex/biber); note that requires
-  a TeX installation and is your action, not the server's.
+  Report provenance honestly: what you transcribed, which drawings were described
+  vs. reproduced, the chosen section, and the target_path. The server is
+  WRITE-ONLY. If the user wants a PDF, offer to compile main.tex yourself with a
+  local TeX toolchain (pdflatex → biber → pdflatex twice, because the template
+  uses biblatex/biber); that requires a TeX installation and is your action.
 
-Notes root defaults to ~/Desktop/College/Notes (override with the env var
-SCRIBE_TEX_NOTES_ROOT). Each date becomes \section{Month D, YYYY} with an ISO
-\label{sec:YYYY-MM-DD}; sections stay in ascending date order and duplicates are
-never silently overwritten.
+Notes root defaults to ~/Desktop/College/Notes (override with env
+SCRIBE_TEX_NOTES_ROOT). Each note's \subsection carries a hidden
+\label{note:YYYY-MM-DD} for duplicate detection; duplicates are never silently
+overwritten.
 """
 
 mcp = FastMCP("scribe-tex", instructions=SERVER_INSTRUCTIONS)
@@ -94,7 +101,7 @@ def _prepare_note(source: str = "file", ref: str = "") -> dict:
     }
 
 
-def _resolve_placement(course_hint: str, date: str) -> dict:
+def _resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
     root = notes_root()
     known = known_courses(root)
     date_iso = parse_date(date)
@@ -113,14 +120,14 @@ def _resolve_placement(course_hint: str, date: str) -> dict:
     target = root / slug / "main.tex"
 
     duplicate = False
-    insert_position = "start (first section)"
-    if date_iso and status == "existing" and target.exists():
-        plan = plan_insertion(target.read_text(encoding="utf-8"), date_iso)
-        duplicate = plan["duplicate"]
-        if duplicate:
-            insert_position = f"duplicate of existing section dated {date_iso}"
-        elif plan["after_date"]:
-            insert_position = f"after section dated {plan['after_date']}"
+    section_status = "new"
+    sections: list[str] = []
+    if status == "existing" and target.exists():
+        text = target.read_text(encoding="utf-8")
+        sections = existing_sections(text)
+        section_status = "existing" if section_hint in sections else "new"
+        if date_iso and date_iso in existing_note_labels(text):
+            duplicate = True
 
     if not date_iso:
         confidence = "low"
@@ -128,16 +135,19 @@ def _resolve_placement(course_hint: str, date: str) -> dict:
     return {
         "course": course,
         "course_status": status,
+        "section_title": section_hint,
+        "section_status": section_status,
+        "existing_sections": sections,
         "target_path": str(target),
         "date_iso": date_iso,
         "date_display": display_date(date_iso) if date_iso else None,
-        "insert_position": insert_position,
         "duplicate": duplicate,
         "match_confidence": confidence,
     }
 
 
-def _write_section(course: str, date: str, latex_body: str,
+def _write_section(course: str, section_title: str, subsection_title: str,
+                   latex_body: str, date: str, course_number: str = "",
                    on_duplicate: str = "warn") -> dict:
     root = notes_root()
     date_iso = parse_date(date)
@@ -147,18 +157,22 @@ def _write_section(course: str, date: str, latex_body: str,
     slug = course_slug(course)
     target = root / slug / "main.tex"
     if not target.exists():
-        # infer a course number token (first token containing a digit) for the header
-        number = next((t for t in course.split() if any(c.isdigit() for c in t)), course)
+        # Prefer an explicit course_number; else infer a digit-bearing token from
+        # the course name; else fall back to the course name.
+        number = (course_number.strip()
+                  or next((t for t in course.split() if any(c.isdigit() for c in t)),
+                          course))
         scaffold_course(root, course, number)
 
     try:
-        new_text, summary = insert_section(
-            target.read_text(encoding="utf-8"), date_iso, latex_body, on_duplicate
+        new_text, summary = insert_note(
+            target.read_text(encoding="utf-8"), section_title, subsection_title,
+            latex_body, date_iso, on_duplicate,
         )
-    except DuplicateDateError as e:
+    except DuplicateNoteError as e:
         return {"written": False,
-                "error": f"duplicate date {e.date_iso}; choose on_duplicate="
-                         f"'replace' or 'append', or skip."}
+                "error": f"a note labelled {e.date_iso} already exists; choose "
+                         f"on_duplicate='replace' or 'append', or skip."}
     except MalformedDocumentError as e:
         return {"written": False, "error": f"malformed document: {e}"}
 
@@ -173,51 +187,63 @@ def prepare_note(source: str = "file", ref: str = "") -> dict:
     transcribe it, and return the transcription brief + placement context.
 
     Args:
-        source: note source type; use "file" for a local PDF/image path.
-        ref: the path to the note (PDF, PNG, JPG). For a PDF, every page is
-            rendered to a PNG.
+        source: "file" for a local PDF/image path; "goodnotes" is an alias for
+            the same (GoodNotes PDF/PNG/JPG/HEIC exports).
+        ref: the path to the note. For a PDF, every page is rendered to a PNG.
     Returns a dict with: page_images (PNG paths to read and transcribe),
     brief (the rules you must follow when transcribing), notes_root, and
-    known_courses (existing course docs, to help you infer the course). On bad
-    input returns {"error": ..., "page_images": []}.
-    After calling this, READ every page image and transcribe it yourself."""
+    known_courses. On bad input returns {"error": ..., "page_images": []}.
+    After calling this, READ every page image and transcribe it yourself, then
+    decide a section title, a subsection title, and the date."""
     return _prepare_note(source, ref)
 
 
 @mcp.tool
-def resolve_placement(course_hint: str, date: str) -> dict:
-    """STEP 3. Resolve which course document and where in it a note's section
-    will go, so you can confirm placement with the user BEFORE writing.
+def resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
+    """STEP 3. Resolve which course document and which topic section a note goes
+    under, so you can confirm placement with the user BEFORE writing.
 
     Args:
-        course_hint: the course name/number you inferred from the note.
-        date: the class date you inferred (any common format; normalized to ISO).
-    Returns: course, course_status ("existing"/"new"), target_path, date_iso,
-    date_display, insert_position, duplicate (bool), match_confidence
-    ("high"/"low"). Show this to the user and confirm before write_section. If
-    match_confidence is "low", course_status is "new", or date_iso is null,
+        course_hint: the course name/number you inferred.
+        section_hint: the top-level SECTION title this note belongs under.
+        date: the class date (any common format; normalized to ISO; used as the
+            hidden duplicate-detection label).
+    Returns: course, course_status ("existing"/"new"), section_title,
+    section_status ("existing"/"new"), existing_sections (list, to help you reuse
+    one), target_path, date_iso, date_display, duplicate (bool),
+    match_confidence. Show this to the user and confirm before write_section. If
+    match_confidence is "low", the course/section is "new", or date_iso is null,
     clear it up with the user first — do not assume."""
-    return _resolve_placement(course_hint, date)
+    return _resolve_placement(course_hint, section_hint, date)
 
 
 @mcp.tool
-def write_section(course: str, date: str, latex_body: str,
+def write_section(course: str, section_title: str, subsection_title: str,
+                  latex_body: str, date: str, course_number: str = "",
                   on_duplicate: str = "warn") -> dict:
-    """STEP 4. Scaffold the course if new and insert your transcribed section in
-    date order. Call only AFTER the user confirms the placement.
+    """STEP 4. Scaffold the course if new and add your transcribed note as a
+    subsection under the given topic section. Call only AFTER the user confirms.
 
     Args:
-        course: the confirmed course name/number.
-        date: the confirmed class date.
-        latex_body: your transcribed LaTeX — SECTION BODY ONLY (no preamble, no
-            \\section/\\label line; the server adds those).
-        on_duplicate: "warn" (default; refuse and report if the date exists),
-            "replace" (collapse that date to one new section), or "append" (add
-            a second section for that date).
+        course: the confirmed course NAME (e.g. "Organic Chemistry"); also the
+            folder name.
+        section_title: the top-level section to file under (appended within if it
+            exists, else created at the end of the document).
+        subsection_title: a concise title for this note's subsection.
+        latex_body: your transcribed LaTeX — BODY ONLY (no preamble, no
+            \\section/\\subsection/\\label line; the server adds those).
+        date: the confirmed class date (becomes the hidden \\label{note:...}).
+        course_number: the course NUMBER (e.g. "CHEM 22100") for the title page
+            and running header; used only when scaffolding a new course. If
+            omitted, a digit-bearing token from the course name is used.
+        on_duplicate: "warn" (default; refuse if a note with that date-label
+            exists), "replace" (collapse that date's notes to one), or "append"
+            (add another).
     Returns {"written": true, target_path, diff_summary, compiled: false}, or
     {"written": false, "error": ...} on a duplicate/malformed document. The
     server is write-only and never compiles LaTeX."""
-    return _write_section(course, date, latex_body, on_duplicate)
+    return _write_section(course, section_title, subsection_title, latex_body,
+                          date, course_number, on_duplicate)
 
 
 def main() -> None:

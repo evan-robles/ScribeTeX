@@ -1,65 +1,63 @@
 import pytest
 from scribe_tex.writer import (
-    insert_section, DuplicateDateError, MalformedDocumentError,
+    insert_note, DuplicateNoteError, MalformedDocumentError,
 )
-from scribe_tex.placement import ENTRIES_START, ENTRIES_END, existing_dates
+from scribe_tex.placement import (
+    ENTRIES_START, ENTRIES_END, existing_sections, existing_note_labels,
+)
 
 BASE = f"\\begin{{document}}\n{ENTRIES_START}\n{ENTRIES_END}\n\\end{{document}}\n"
 
 
-def test_insert_first_section():
-    out, summary = insert_section(BASE, "2025-10-03", "hello")
-    assert existing_dates(out) == ["2025-10-03"]
-    assert r"\section{October 3, 2025}" in out
+def test_insert_creates_section_and_subsection():
+    out, summary = insert_note(BASE, "Techniques", "NMR", "hello", "2025-10-03")
+    assert existing_sections(out) == ["Techniques"]
+    assert r"\subsection{NMR}" in out
+    assert r"\label{note:2025-10-03}" in out
     assert "hello" in out
-    assert "inserted" in summary.lower()
+    assert "created section" in summary.lower()
 
 
-def test_insert_keeps_date_order():
-    out, _ = insert_section(BASE, "2025-10-10", "b")
-    out, _ = insert_section(out, "2025-09-28", "a")
-    out, _ = insert_section(out, "2025-10-03", "c")
-    assert existing_dates(out) == ["2025-09-28", "2025-10-03", "2025-10-10"]
+def test_second_note_same_section_appends_within():
+    out, _ = insert_note(BASE, "Techniques", "NMR", "a", "2025-10-03")
+    out, summary = insert_note(out, "Techniques", "Chromatography", "b", "2025-10-04")
+    # still exactly one section, now with two subsections
+    assert existing_sections(out) == ["Techniques"]
+    assert r"\subsection{NMR}" in out and r"\subsection{Chromatography}" in out
+    assert "existing section" in summary.lower()
 
 
-def test_duplicate_warn_raises():
-    out, _ = insert_section(BASE, "2025-10-03", "x")
-    with pytest.raises(DuplicateDateError):
-        insert_section(out, "2025-10-03", "y", on_duplicate="warn")
+def test_new_section_appended_at_end():
+    out, _ = insert_note(BASE, "Techniques", "NMR", "a", "2025-10-03")
+    out, _ = insert_note(out, "Mechanisms", "Addition", "b", "2025-10-04")
+    assert existing_sections(out) == ["Techniques", "Mechanisms"]
 
 
-def test_duplicate_replace_swaps_body():
-    out, _ = insert_section(BASE, "2025-10-03", "OLD")
-    out, _ = insert_section(out, "2025-10-03", "NEW", on_duplicate="replace")
+def test_duplicate_label_warn_raises():
+    out, _ = insert_note(BASE, "Techniques", "NMR", "x", "2025-10-03")
+    with pytest.raises(DuplicateNoteError):
+        insert_note(out, "Techniques", "NMR again", "y", "2025-10-03",
+                    on_duplicate="warn")
+
+
+def test_duplicate_replace_collapses_to_one():
+    out, _ = insert_note(BASE, "Techniques", "NMR", "OLD", "2025-10-03")
+    out, _ = insert_note(out, "Techniques", "NMR v2", "NEW", "2025-10-03",
+                         on_duplicate="replace")
+    assert existing_note_labels(out) == ["2025-10-03"]
     assert "NEW" in out and "OLD" not in out
-    assert existing_dates(out) == ["2025-10-03"]
+    assert r"\subsection{NMR v2}" in out
 
 
 def test_duplicate_append_adds_second():
-    out, _ = insert_section(BASE, "2025-10-03", "first")
-    out, _ = insert_section(out, "2025-10-03", "second", on_duplicate="append")
-    assert existing_dates(out) == ["2025-10-03", "2025-10-03"]
+    out, _ = insert_note(BASE, "Techniques", "NMR", "first", "2025-10-03")
+    out, _ = insert_note(out, "Techniques", "NMR extra", "second", "2025-10-03",
+                         on_duplicate="append")
+    assert existing_note_labels(out) == ["2025-10-03", "2025-10-03"]
     assert "first" in out and "second" in out
 
 
 def test_malformed_missing_markers_raises():
     with pytest.raises(MalformedDocumentError):
-        insert_section("\\begin{document}\n\\end{document}\n", "2025-10-03", "x")
-
-
-def test_replace_collapses_multiple_same_date_blocks():
-    out, _ = insert_section(BASE, "2025-10-03", "first")
-    out, _ = insert_section(out, "2025-10-03", "second", on_duplicate="append")
-    # now two blocks for that date; replace must collapse to exactly one
-    out, _ = insert_section(out, "2025-10-03", "FINAL", on_duplicate="replace")
-    assert existing_dates(out) == ["2025-10-03"]
-    assert "FINAL" in out
-    assert "first" not in out and "second" not in out
-
-
-def test_replace_leaves_other_dates_intact():
-    out, _ = insert_section(BASE, "2025-09-28", "keep-early")
-    out, _ = insert_section(out, "2025-10-10", "keep-late")
-    out, _ = insert_section(out, "2025-09-28", "REPLACED", on_duplicate="replace")
-    assert existing_dates(out) == ["2025-09-28", "2025-10-10"]
-    assert "REPLACED" in out and "keep-late" in out and "keep-early" not in out
+        insert_note("\\begin{document}\n\\end{document}\n", "T", "S", "x",
+                    "2025-10-03")

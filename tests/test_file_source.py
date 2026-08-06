@@ -17,6 +17,17 @@ def test_registered_file_source():
     assert isinstance(get_source("file"), FileSource)
 
 
+def test_goodnotes_alias_is_file_source():
+    assert isinstance(get_source("goodnotes"), FileSource)
+
+
+def test_heic_image_passthrough(tmp_path):
+    img = tmp_path / "note.heic"
+    img.write_bytes(b"\x00\x00\x00\x18ftypheic")  # stub; path handling under test
+    out = FileSource().fetch_pages(str(img))
+    assert out == [img]
+
+
 def test_pdf_renders_one_png_per_page(tmp_path):
     pdf = tmp_path / "note.pdf"
     _make_pdf(pdf, 3)

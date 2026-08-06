@@ -1,7 +1,13 @@
 # scribe-tex
 
 A FastMCP server that files agent-transcribed handwritten notes into per-course
-LaTeX documents, one dated `\section` per class, in date order.
+LaTeX documents. Notes are organized **by topic**: content lives under top-level
+`\section` headings (e.g. "Characterization Techniques") and each note becomes
+one or more `\subsection` under a chosen section. Each course document uses a
+fixed template (full title page + table of contents + course preamble).
+
+Input can be any PDF or image export from an iPad app — **GoodNotes**, Notability,
+etc. (`source="file"`, or the `source="goodnotes"` alias).
 
 The calling agent (e.g. Claude Code) does the vision transcription; this server
 does deterministic, offline LaTeX placement only — it never compiles LaTeX and
@@ -15,12 +21,17 @@ pip install -e ".[dev]"
 
 ## MCP tools
 
-- `prepare_note(source="file", ref)` — render a note export to page PNGs and
-  return a transcription brief + known courses.
-- `resolve_placement(course_hint, date)` — map to a course document and report
-  where the dated section will land (and whether that date already exists).
-- `write_section(course, date, latex_body, on_duplicate="warn")` — scaffold the
-  course if new and insert the section in date order.
+- `prepare_note(source="file", ref)` — render a note export (PDF/PNG/JPG/HEIC)
+  to page images and return a transcription brief + known courses.
+  `source="goodnotes"` is an alias for GoodNotes exports.
+- `resolve_placement(course_hint, section_hint, date)` — map to a course
+  document and topic section, reporting new-vs-existing and any duplicate.
+- `write_section(course, section_title, subsection_title, latex_body, date,
+  course_number="", on_duplicate="warn")` — scaffold the course if new and add
+  the note as a subsection under the given topic section.
+
+Each note's subsection carries a hidden `\label{note:YYYY-MM-DD}` used only for
+duplicate detection.
 
 ## Configuration
 
@@ -64,10 +75,11 @@ pdflatex main && biber main && pdflatex main && pdflatex main
 
 ## Workflow
 
-1. Drop a handwritten note export path into chat: *"process ~/Downloads/linalg-oct3.pdf"*.
+1. Drop a handwritten note export path into chat: *"process ~/Downloads/chem-nmr.pdf"*.
 2. The agent calls `prepare_note`, reads the page images, transcribes to LaTeX,
-   and infers the course + date.
-3. The agent calls `resolve_placement` and shows you the detected course, date,
-   target file, and whether that date already exists — you confirm.
+   and decides a course, a top-level section (theme), a subsection title, and the
+   date.
+3. The agent calls `resolve_placement` and shows you the detected course, the
+   chosen section (new vs existing), the date, and any duplicate — you confirm.
 4. The agent calls `write_section`; the note is filed into the course's
-   `main.tex` as a dated section, in date order.
+   `main.tex` as a `\subsection` under the chosen topic `\section`.

@@ -1,60 +1,85 @@
-"""Pure LaTeX placement logic: enumerate dates, build blocks, plan insertion.
+"""Pure LaTeX placement logic for the topic-based model.
 
 No I/O. All functions operate on the main.tex text as a string.
+
+Documents are organized by TOPIC: content lives under top-level ``\\section``s
+(e.g. "Characterization Techniques") within the ENTRIES region; each transcribed
+note is one or more ``\\subsection``s placed under a chosen section. Every
+inserted subsection carries a hidden ``\\label{note:YYYY-MM-DD}`` used only for
+duplicate detection (the date no longer drives ordering).
 """
 from __future__ import annotations
 import re
 
 ENTRIES_START = "% >>> ENTRIES"
 ENTRIES_END = "% <<< ENTRIES"
-_LABEL_RE = re.compile(r"\\label\{sec:(\d{4}-\d{2}-\d{2})\}")
+
+BODY_BEGIN = "% --- begin transcribed body ---"
+BODY_END = "% --- end transcribed body ---"
+
+_SECTION_RE = re.compile(r"\\section\{(.*?)\}")
+_NOTE_LABEL_RE = re.compile(r"\\label\{note:(\d{4}-\d{2}-\d{2})\}")
 
 
-def existing_dates(main_tex: str) -> list[str]:
-    """ISO dates from \\label{sec:...} anchors, in document order."""
-    return _LABEL_RE.findall(main_tex)
+def _entries_region(main_tex: str) -> tuple[int, int]:
+    """Return (start, end) character offsets of the text BETWEEN the ENTRIES
+    markers (start = just after the ENTRIES_START line; end = index of the
+    ENTRIES_END marker)."""
+    start_marker = main_tex.index(ENTRIES_START)
+    start = start_marker + len(ENTRIES_START)
+    if start < len(main_tex) and main_tex[start] == "\n":
+        start += 1
+    end = main_tex.index(ENTRIES_END, start)
+    return start, end
 
 
-def section_block(date_iso: str, display: str, body: str) -> str:
-    """Full section block for one class date."""
+def existing_sections(main_tex: str) -> list[str]:
+    """Titles of top-level ``\\section``s within the ENTRIES region, in order."""
+    start, end = _entries_region(main_tex)
+    return _SECTION_RE.findall(main_tex[start:end])
+
+
+def existing_note_labels(main_tex: str) -> list[str]:
+    """ISO dates from ``\\label{note:...}`` anchors, in document order."""
+    return _NOTE_LABEL_RE.findall(main_tex)
+
+
+def subsection_block(title: str, body: str, date_iso: str) -> str:
+    """A single ``\\subsection`` with a hidden note-label and body markers."""
     return (
-        f"\\section{{{display}}}\n"
-        f"\\label{{sec:{date_iso}}}\n"
-        f"% --- begin transcribed body ---\n"
+        f"\\subsection{{{title}}}\n"
+        f"\\label{{note:{date_iso}}}\n"
+        f"{BODY_BEGIN}\n"
         f"{body}\n"
-        f"% --- end transcribed body ---\n"
+        f"{BODY_END}\n"
     )
 
 
-def plan_insertion(main_tex: str, date_iso: str) -> dict:
-    """Decide where a new dated block should go to keep dates ascending.
+def section_block(section_title: str, subsections_text: str) -> str:
+    """A new top-level ``\\section`` wrapping already-rendered subsection text."""
+    return f"\\section{{{section_title}}}\n{subsections_text}"
 
-    Returns {"duplicate", "after_date", "insert_index"}.
+
+def plan_topic_insertion(main_tex: str, section_title: str) -> dict:
+    """Decide where a note's subsections go for the given topic section.
+
+    Returns ``{"section_exists": bool, "insert_index": int}``. When the section
+    exists, ``insert_index`` is the offset at the END of that section (just
+    before the next ``\\section`` or the ENTRIES_END marker), so new subsections
+    append within it. When it does not exist, ``insert_index`` is the ENTRIES_END
+    marker offset, so a new section is appended at the end of the region.
     """
-    dates = existing_dates(main_tex)
-    if date_iso in dates:
-        return {"duplicate": True, "after_date": None, "insert_index": -1}
+    start, end = _entries_region(main_tex)
+    region = main_tex[start:end]
 
-    earlier = [d for d in dates if d < date_iso]
-    after_date = max(earlier) if earlier else None
+    # Locate the target section by exact title within the region.
+    target = f"\\section{{{section_title}}}"
+    rel = region.find(target)
+    if rel == -1:
+        return {"section_exists": False, "insert_index": end}
 
-    if after_date is None:
-        # Insert immediately after the ENTRIES_START marker line.
-        idx = main_tex.index(ENTRIES_START) + len(ENTRIES_START)
-        # advance past the newline
-        if idx < len(main_tex) and main_tex[idx] == "\n":
-            idx += 1
-        return {"duplicate": False, "after_date": None, "insert_index": idx}
-
-    # Insert after the block whose label is `after_date`: find that label,
-    # then the position right after its end-of-body marker (next end marker
-    # after the label), else after the label line.
-    label = f"\\label{{sec:{after_date}}}"
-    label_pos = main_tex.index(label)
-    end_marker = "% --- end transcribed body ---"
-    end_pos = main_tex.find(end_marker, label_pos)
-    if end_pos == -1:
-        cut = main_tex.index("\n", label_pos) + 1
-    else:
-        cut = main_tex.index("\n", end_pos) + 1
-    return {"duplicate": False, "after_date": after_date, "insert_index": cut}
+    sec_abs = start + rel
+    # The section runs until the next top-level \section after it, or the region end.
+    next_rel = region.find("\\section{", rel + len(target))
+    section_end = start + next_rel if next_rel != -1 else end
+    return {"section_exists": True, "insert_index": section_end}

@@ -5,10 +5,14 @@ from pathlib import Path
 
 from .base import register
 
-_IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".heic"}
 
 
 class FileSource:
+    """Ingest a local note export. Handles a PDF (rendered to one PNG per page)
+    or a single image (.png/.jpg/.jpeg/.heic) passed straight through. This
+    covers GoodNotes and other iPad apps' standard PDF/image exports."""
+
     def fetch_pages(self, ref: str) -> list[Path]:
         path = Path(ref).expanduser()
         if not path.exists():
@@ -34,3 +38,5 @@ class FileSource:
 
 
 register("file", FileSource)
+# GoodNotes exports as PDF/PNG/JPG; a dedicated alias documents that intent.
+register("goodnotes", FileSource)
