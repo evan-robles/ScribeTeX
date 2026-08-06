@@ -130,6 +130,12 @@ def _suppress_stdout():
         yield
 
 
+def _known_courses() -> list:
+    from scribetex.discovery import known_courses
+    from scribetex.config import notes_root
+    return known_courses(notes_root())
+
+
 def _emit(obj) -> int:
     print(json.dumps(obj))
     return 0
@@ -170,6 +176,7 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("needs-review")
+    sub.add_parser("known-courses")
     sp = sub.add_parser("set-inbox")
     sp.add_argument("--path", required=True)
     pp = sub.add_parser("process")
@@ -186,6 +193,8 @@ def main(argv=None) -> int:
 
 
 def _dispatch(args) -> int:
+    if args.cmd == "known-courses":
+        return _emit({"ok": True, "courses": _known_courses()})
     if args.cmd == "status":
         cfg = _load()
         return _emit(_status_dict(cfg))
