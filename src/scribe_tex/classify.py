@@ -41,3 +41,45 @@ def display_date(iso: str) -> str:
     """ISO YYYY-MM-DD -> 'Month D, YYYY' (no zero-padded day)."""
     dt = datetime.strptime(iso, "%Y-%m-%d")
     return f"{dt:%B} {dt.day}, {dt.year}"
+
+
+def course_slug(name: str) -> str:
+    """Folder-safe slug for a course name."""
+    cleaned = re.sub(r"[^A-Za-z0-9\s-]", "", name)
+    parts = cleaned.split()
+    return "-".join(parts)
+
+
+def _tokens(s: str) -> set[str]:
+    return {t for t in re.split(r"[\s]+", s.lower()) if t}
+
+
+def match_course(hint: str, known: list[str]) -> tuple[str | None, str]:
+    """Match a free-text course hint to a known course name.
+
+    Returns (course_or_None, confidence in {"high","low","none"}).
+    """
+    hint_tokens = _tokens(hint)
+    if not hint_tokens:
+        return None, "none"
+    scored = []
+    for course in known:
+        overlap = hint_tokens & _tokens(course)
+        if overlap:
+            scored.append((len(overlap), course))
+    if not scored:
+        return None, "none"
+    scored.sort(reverse=True)
+    top_score = scored[0][0]
+    winners = [c for s, c in scored if s == top_score]
+    if len(winners) == 1:
+        # Distinguish a strong match (a distinctive token like a course number)
+        # from a weak one (a single common word).
+        confidence = "high" if top_score >= 2 or any(
+            any(ch.isdigit() for ch in tok) for tok in (hint_tokens & _tokens(winners[0]))
+        ) else "low"
+        if confidence == "high":
+            return winners[0], confidence
+        else:
+            return None, "none"
+    return None, "low"
