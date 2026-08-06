@@ -1,8 +1,8 @@
 import pytest
-from scribe_tex.writer import (
+from scribetex.writer import (
     insert_note, DuplicateNoteError, MalformedDocumentError,
 )
-from scribe_tex.placement import (
+from scribetex.placement import (
     ENTRIES_START, ENTRIES_END, existing_sections, existing_note_labels,
 )
 

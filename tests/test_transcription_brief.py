@@ -1,5 +1,5 @@
-from scribe_tex.transcription_brief import build_brief
-from scribe_tex.preamble import ALLOWED_MACROS
+from scribetex.transcription_brief import build_brief
+from scribetex.preamble import ALLOWED_MACROS
 
 
 def test_brief_lists_macros_and_rules():

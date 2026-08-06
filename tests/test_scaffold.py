@@ -1,9 +1,9 @@
 import pytest
-from scribe_tex.scaffold import (
+from scribetex.scaffold import (
     build_main_tex, scaffold_course,
     DEFAULT_FOOTER_NAME, DEFAULT_AUTHOR, DEFAULT_AFFILIATION,
 )
-from scribe_tex.placement import ENTRIES_START, ENTRIES_END
+from scribetex.placement import ENTRIES_START, ENTRIES_END
 
 
 def test_build_main_tex_shape():

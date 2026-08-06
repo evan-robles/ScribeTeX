@@ -1,10 +1,10 @@
 import fitz
-from scribe_tex import server
-from scribe_tex.placement import existing_sections, existing_note_labels
+from scribetex import server
+from scribetex.placement import existing_sections, existing_note_labels
 
 
 def test_full_flow(tmp_path, monkeypatch):
-    monkeypatch.setenv("SCRIBE_TEX_NOTES_ROOT", str(tmp_path))
+    monkeypatch.setenv("SCRIBETEX_NOTES_ROOT", str(tmp_path))
     # 1. prepare a (blank) note PDF
     pdf = tmp_path / "chem.pdf"
     d = fitz.open(); d.new_page(); d.save(str(pdf)); d.close()

@@ -1,11 +1,11 @@
 import pytest
-from scribe_tex import server
-from scribe_tex.placement import existing_sections, existing_note_labels
+from scribetex import server
+from scribetex.placement import existing_sections, existing_note_labels
 
 
 @pytest.fixture
 def root(tmp_path, monkeypatch):
-    monkeypatch.setenv("SCRIBE_TEX_NOTES_ROOT", str(tmp_path))
+    monkeypatch.setenv("SCRIBETEX_NOTES_ROOT", str(tmp_path))
     return tmp_path
 
 

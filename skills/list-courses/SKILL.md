@@ -23,7 +23,7 @@ It prints JSON: the `notes_root`, a `course_count`, and a `courses` array where
 each entry has the course display name, its `main.tex` `path`, its `sections`
 (top-level topic titles, in order), and a `note_count` (number of
 note-labelled subsections). Reads `~/Desktop/College/Notes` by default (override
-with `SCRIBE_TEX_NOTES_ROOT`).
+with `SCRIBETEX_NOTES_ROOT`).
 
 ## Examples
 
@@ -34,7 +34,7 @@ Typical output shows each course with its topic sections (e.g.
 `["Characterization Techniques", "Reaction Mechanisms"]`) and a note count.
 
 ## Constraints
-- **Environment**: requires the `scribe_tex` package importable (plugin sets
+- **Environment**: requires the `scribetex` package importable (plugin sets
   PYTHONPATH; the SessionStart hook installs deps).
 - **Read-only**: this skill never modifies any document.
 

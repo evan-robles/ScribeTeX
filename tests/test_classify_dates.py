@@ -1,5 +1,5 @@
 import pytest
-from scribe_tex.classify import parse_date, display_date
+from scribetex.classify import parse_date, display_date
 
 
 @pytest.mark.parametrize("raw,iso", [

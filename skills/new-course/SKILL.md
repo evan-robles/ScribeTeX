@@ -28,7 +28,7 @@ Optional flags override the defaults `--author "Evan S. Robles"` and
 
 The document is written to `<notes-root>/<Course-Slug>/main.tex`, where the notes
 root is `~/Desktop/College/Notes` by default (override with the
-`SCRIBE_TEX_NOTES_ROOT` environment variable).
+`SCRIBETEX_NOTES_ROOT` environment variable).
 
 ## Examples
 
@@ -38,7 +38,7 @@ python skills/new-course/scripts/run.py --name "<Course Name>" --number "DEPT 20
 ```
 
 ## Constraints
-- **Environment**: requires the `scribe_tex` package importable (plugin sets
+- **Environment**: requires the `scribetex` package importable (plugin sets
   PYTHONPATH; the SessionStart hook installs deps).
 - **No overwrite**: refuses if `main.tex` already exists for that course.
 - **Write-only**: does not compile the document; use `compile-course` for a PDF.

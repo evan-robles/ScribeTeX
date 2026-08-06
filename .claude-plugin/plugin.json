@@ -1,5 +1,6 @@
 {
-  "name": "scribe-tex",
+  "name": "scribetex",
+  "displayName": "ScribeTeX",
   "version": "0.1.0",
   "description": "Turn handwritten iPad/GoodNotes note exports into typeset per-course LaTeX (MCP server + skills).",
   "author": {
@@ -11,13 +12,12 @@
   "license": "MIT",
   "keywords": ["latex", "notes", "ipad", "goodnotes", "mcp", "transcription"],
   "mcpServers": {
-    "scribe-tex": {
+    "ScribeTeX": {
       "command": "python3",
-      "args": ["-m", "scribe_tex.server"],
+      "args": ["-m", "scribetex.server"],
       "env": {
         "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/src"
       }
     }
-  },
-  "hooks": "./hooks/hooks.json"
+  }
 }

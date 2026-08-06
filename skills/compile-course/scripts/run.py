@@ -2,7 +2,7 @@
 """Compile a course's main.tex to PDF via the biblatex/biber toolchain.
 
 Runs pdflatex -> biber -> pdflatex -> pdflatex in the course directory (the
-template uses biblatex with the biber backend). This is the one place scribe-tex
+template uses biblatex with the biber backend). This is the one place ScribeTeX
 compiles LaTeX; the MCP server itself stays write-only.
 
 Usage:
@@ -10,7 +10,7 @@ Usage:
     python run.py --path /abs/path/to/course/main.tex
 
 Requires a local TeX toolchain (pdflatex + biber, e.g. MacTeX / TeX Live). Fails
-gracefully with a clear message if absent. Requires the ``scribe_tex`` package
+gracefully with a clear message if absent. Requires the ``scribetex`` package
 importable (the plugin sets PYTHONPATH).
 """
 from __future__ import annotations
@@ -22,8 +22,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scribe_tex.config import notes_root
-from scribe_tex.classify import course_slug
+from scribetex.config import notes_root
+from scribetex.classify import course_slug
 
 
 def _resolve_main_tex(args) -> Path | None:

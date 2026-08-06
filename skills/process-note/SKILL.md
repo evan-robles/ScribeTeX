@@ -52,7 +52,7 @@ python skills/process-note/scripts/run.py ~/Downloads/chem-nmr.pdf --source good
 ```
 
 ## Constraints
-- **Environment**: requires the `scribe_tex` package importable and its deps
+- **Environment**: requires the `scribetex` package importable and its deps
   (`fastmcp`, `pymupdf`, `python-dateutil`); the plugin's SessionStart hook
   installs them.
 - **Agent-transcribed**: this skill never runs a vision model itself; you do the

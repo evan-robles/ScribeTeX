@@ -1,5 +1,5 @@
 {
-  "name": "scribe-tex",
+  "name": "scribetex",
   "description": "Turn handwritten iPad/GoodNotes note exports into typeset per-course LaTeX.",
   "owner": {
     "name": "Evan S. Robles",
@@ -7,7 +7,8 @@
   },
   "plugins": [
     {
-      "name": "scribe-tex",
+      "name": "scribetex",
+      "displayName": "ScribeTeX",
       "source": ".",
       "description": "Turn handwritten iPad/GoodNotes note exports into typeset per-course LaTeX. Ships an MCP server plus skills for processing notes, scaffolding courses, listing them, and compiling to PDF.",
       "version": "0.1.0",

@@ -23,7 +23,7 @@ class FileSource:
         if ext != ".pdf":
             raise ValueError(f"unsupported note file type: {ext}")
         import fitz  # PyMuPDF
-        out_dir = Path(tempfile.mkdtemp(prefix="scribe_tex_"))
+        out_dir = Path(tempfile.mkdtemp(prefix="scribetex_"))
         doc = fitz.open(str(path))
         pages: list[Path] = []
         try:

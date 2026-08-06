@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ensure the scribe-tex MCP server's Python dependencies are importable.
+"""Ensure the ScribeTeX MCP server's Python dependencies are importable.
 
 Runs from the plugin's SessionStart hook. Idempotent: if fastmcp, PyMuPDF
 (``fitz``), and python-dateutil already import, it does nothing but print a
@@ -36,24 +36,24 @@ def _missing() -> list[str]:
 def main() -> int:
     missing = _missing()
     if not missing:
-        print("[scribe-tex] dependencies present.")
+        print("[ScribeTeX] dependencies present.")
         return 0
-    print(f"[scribe-tex] installing missing dependencies: {', '.join(missing)}")
+    print(f"[ScribeTeX] installing missing dependencies: {', '.join(missing)}")
     try:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "--quiet", *missing],
             check=True,
         )
     except Exception as e:  # never block the session
-        print(f"[scribe-tex] could not auto-install ({e}). "
+        print(f"[ScribeTeX] could not auto-install ({e}). "
               f"Run: {sys.executable} -m pip install {' '.join(missing)}")
         return 0
     still = _missing()
     if still:
-        print(f"[scribe-tex] still missing after install: {', '.join(still)} "
+        print(f"[ScribeTeX] still missing after install: {', '.join(still)} "
               f"(the MCP server may not start until these are installed).")
     else:
-        print("[scribe-tex] dependencies installed.")
+        print("[ScribeTeX] dependencies installed.")
     return 0
 
 

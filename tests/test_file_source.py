@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
-from scribe_tex.sources.base import get_source
-from scribe_tex.sources.file_source import FileSource
+from scribetex.sources.base import get_source
+from scribetex.sources.file_source import FileSource
 
 
 def _make_pdf(path: Path, pages: int) -> None:
@@ -56,6 +56,6 @@ def test_unsupported_extension_raises(tmp_path):
 
 
 def test_onenote_source_not_implemented():
-    from scribe_tex.sources.onenote_source import OneNoteSource
+    from scribetex.sources.onenote_source import OneNoteSource
     with pytest.raises(NotImplementedError):
         OneNoteSource().fetch_pages("anything")

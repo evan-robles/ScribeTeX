@@ -4,12 +4,12 @@
 Renders a note (PDF or image; GoodNotes/Notability/etc. exports) to page images
 and prints the transcription brief, the notes root, and the known courses, so
 the calling agent can read the images, transcribe to LaTeX, and then resolve +
-write via the scribe-tex MCP tools.
+write via the ScribeTeX MCP tools.
 
 Usage:
     python run.py <path-to-note.pdf-or-image> [--source file|goodnotes]
 
-Requires the ``scribe_tex`` package importable (the plugin sets PYTHONPATH).
+Requires the ``scribetex`` package importable (the plugin sets PYTHONPATH).
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import argparse
 import json
 import sys
 
-from scribe_tex import server
+from scribetex import server
 
 
 def main() -> int:

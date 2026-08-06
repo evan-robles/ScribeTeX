@@ -13,7 +13,7 @@ from .writer import insert_note, DuplicateNoteError, MalformedDocumentError
 from .placement import existing_sections, existing_note_labels
 
 SERVER_INSTRUCTIONS = r"""
-scribe-tex turns a handwritten note export (PDF or image, e.g. from GoodNotes or
+ScribeTeX turns a handwritten note export (PDF or image, e.g. from GoodNotes or
 another iPad app) into typeset LaTeX, filed into a per-course document. Notes are
 organized BY TOPIC: content lives under top-level \section headings (e.g.
 "Characterization Techniques", "Reaction Mechanisms") and each note becomes one
@@ -79,12 +79,12 @@ AFTER WRITING
   uses biblatex/biber); that requires a TeX installation and is your action.
 
 Notes root defaults to ~/Desktop/College/Notes (override with env
-SCRIBE_TEX_NOTES_ROOT). Each note's \subsection carries a hidden
+SCRIBETEX_NOTES_ROOT). Each note's \subsection carries a hidden
 \label{note:YYYY-MM-DD} for duplicate detection; duplicates are never silently
 overwritten.
 """
 
-mcp = FastMCP("scribe-tex", instructions=SERVER_INSTRUCTIONS)
+mcp = FastMCP("ScribeTeX", instructions=SERVER_INSTRUCTIONS)
 
 
 def _prepare_note(source: str = "file", ref: str = "") -> dict:

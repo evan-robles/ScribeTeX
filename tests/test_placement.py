@@ -1,4 +1,4 @@
-from scribe_tex.placement import (
+from scribetex.placement import (
     ENTRIES_START, ENTRIES_END, BODY_BEGIN, BODY_END,
     existing_sections, existing_note_labels, subsection_block, section_block,
     plan_topic_insertion,

@@ -1,4 +1,4 @@
-from scribe_tex.classify import course_slug, match_course
+from scribetex.classify import course_slug, match_course
 
 KNOWN = ["MATH 257 Linear Algebra", "CHEM 20100 Inorganic Chemistry I"]
 

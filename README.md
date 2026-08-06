@@ -1,4 +1,4 @@
-# scribe-tex
+# ScribeTeX
 
 A FastMCP server that files agent-transcribed handwritten notes into per-course
 LaTeX documents. Notes are organized **by topic**: content lives under top-level
@@ -40,12 +40,12 @@ server plus the skills, from within Claude Code:
 
 ```
 /plugin marketplace add evan-robles/ScribeTeX
-/plugin install scribe-tex@scribe-tex
+/plugin install scribetex@scribetex
 ```
 
 On first session the plugin's `SessionStart` hook installs the Python
 dependencies (`fastmcp`, `pymupdf`, `python-dateutil`) if they are missing, and
-the MCP server is launched via `python3 -m scribe_tex.server` with
+the MCP server is launched via `python3 -m scribetex.server` with
 `PYTHONPATH=${CLAUDE_PLUGIN_ROOT}/src` — no manual `pip install` required.
 
 ## Skills
@@ -59,16 +59,16 @@ The plugin bundles four self-contained skills (each a `SKILL.md` + `scripts/`):
 - **list-courses** — inventory the courses, their topic sections, and note counts.
 - **compile-course** — build a course's `main.tex` to PDF via
   `pdflatex → biber → pdflatex → pdflatex` (requires a local TeX install; this is
-  the only place scribe-tex compiles).
+  the only place ScribeTeX compiles).
 
 ## Configuration
 
-- `SCRIBE_TEX_NOTES_ROOT` — parent folder holding one repo per course.
+- `SCRIBETEX_NOTES_ROOT` — parent folder holding one repo per course.
   Default: `~/Desktop/College/Notes`.
 
 ## Register with an MCP client
 
-First install the package so the `scribe-tex` console command resolves:
+First install the package so the `scribetex` console command resolves:
 
 ```bash
 pip install -e .
@@ -80,14 +80,14 @@ Then add to your MCP client config (e.g. Claude Code `.mcp.json`, or the
 ```json
 {
   "mcpServers": {
-    "scribe-tex": {
-      "command": "scribe-tex"
+    "ScribeTeX": {
+      "command": "scribetex"
     }
   }
 }
 ```
 
-Or run directly: `python -m scribe_tex.server`. The server ships an
+Or run directly: `python -m scribetex.server`. The server ships an
 `instructions` prompt that tells the calling agent the exact prepare → transcribe
 → resolve → confirm → write workflow.
 

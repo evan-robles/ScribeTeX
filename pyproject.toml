@@ -1,5 +1,5 @@
 [project]
-name = "scribe-tex"
+name = "scribetex"
 version = "0.1.0"
 description = "Convert handwritten note exports into per-course dated LaTeX documents."
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [project.scripts]
-scribe-tex = "scribe_tex.server:main"
+scribetex = "scribetex.server:main"
 
 [build-system]
 requires = ["setuptools>=68"]

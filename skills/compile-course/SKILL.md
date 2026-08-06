@@ -7,9 +7,9 @@ category: general
 # Compile Course
 
 ## Goal
-Build a course document to PDF. The scribe-tex template uses `biblatex` with the
+Build a course document to PDF. The ScribeTeX template uses `biblatex` with the
 `biber` backend, so a correct build is `pdflatex → biber → pdflatex → pdflatex`.
-This skill is the ONE place scribe-tex compiles LaTeX — the MCP server stays
+This skill is the ONE place ScribeTeX compiles LaTeX — the MCP server stays
 write-only — so compilation is always an explicit, opt-in step.
 
 ## Instructions
@@ -40,7 +40,7 @@ python skills/compile-course/scripts/run.py --course "<Course Name>"
 - **Environment**: requires a local TeX distribution providing `pdflatex` and
   `biber` (MacTeX or TeX Live). The skill degrades gracefully with a clear
   message if either is missing.
-- **Requires** the `scribe_tex` package importable (plugin sets PYTHONPATH).
+- **Requires** the `scribetex` package importable (plugin sets PYTHONPATH).
 - **Overwrites** the course's `main.pdf` and TeX aux files in place.
 
 ## References

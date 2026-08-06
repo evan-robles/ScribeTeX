@@ -10,7 +10,7 @@ Usage:
     python run.py --name "<Course Name>" --number "DEPT 10100" \
         [--author "Evan S. Robles"] [--affiliation "University of Chicago"]
 
-Requires the ``scribe_tex`` package importable (the plugin sets PYTHONPATH).
+Requires the ``scribetex`` package importable (the plugin sets PYTHONPATH).
 """
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ import argparse
 import json
 import sys
 
-from scribe_tex.config import notes_root
-from scribe_tex.scaffold import (
+from scribetex.config import notes_root
+from scribetex.scaffold import (
     scaffold_course, DEFAULT_AUTHOR, DEFAULT_AFFILIATION,
 )
 

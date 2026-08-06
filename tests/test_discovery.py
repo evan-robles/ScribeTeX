@@ -1,4 +1,4 @@
-from scribe_tex.discovery import known_courses
+from scribetex.discovery import known_courses
 
 
 def test_empty_when_root_missing(tmp_path):

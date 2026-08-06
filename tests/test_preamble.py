@@ -1,4 +1,4 @@
-from scribe_tex.preamble import (
+from scribetex.preamble import (
     PREAMBLE_BODY,
     ALLOWED_MACROS,
     ALLOWED_PACKAGES,

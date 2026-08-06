@@ -1,4 +1,4 @@
-r"""Canonical LaTeX preamble for a scribe-tex course document.
+r"""Canonical LaTeX preamble for a ScribeTeX course document.
 
 This is the user's full preamble, used verbatim for every scaffolded course.
 It is self-contained for a standalone per-course folder: the bibliography

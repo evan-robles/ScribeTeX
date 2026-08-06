@@ -7,17 +7,17 @@ For each course document, prints its topic sections and how many notes
 Usage:
     python run.py
 
-Requires the ``scribe_tex`` package importable (the plugin sets PYTHONPATH).
+Requires the ``scribetex`` package importable (the plugin sets PYTHONPATH).
 """
 from __future__ import annotations
 
 import json
 import sys
 
-from scribe_tex.config import notes_root
-from scribe_tex.classify import course_slug
-from scribe_tex.discovery import known_courses
-from scribe_tex.placement import existing_sections, existing_note_labels
+from scribetex.config import notes_root
+from scribetex.classify import course_slug
+from scribetex.discovery import known_courses
+from scribetex.placement import existing_sections, existing_note_labels
 
 
 def main() -> int:
