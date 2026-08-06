@@ -136,14 +136,34 @@ def _known_courses() -> list:
     return known_courses(notes_root())
 
 
+def _resolve_parked_note(cfg, path):
+    """Resolve a NeedsReview note path safely, or return (None, error_dict).
+
+    Guards against path traversal / symlink escape: a legitimately-parked note
+    (written by route_file/give_up_file via shutil.move of a real PDF) is never a
+    symlink, and its real path always sits directly inside NeedsReview/. Reject a
+    symlink outright, and require the RESOLVED path's parent to be NeedsReview so
+    a crafted symlink inside NeedsReview can't make refile/discard act on a file
+    elsewhere.
+    """
+    src = Path(path).expanduser()
+    nr = _config.needs_review_dir(cfg)
+    if not src.exists() or src.is_symlink():
+        return None, {"ok": False, "error": f"not a parked note: {src}"}
+    real = src.resolve()
+    if real.parent != nr.resolve():
+        return None, {"ok": False, "error": f"not a parked note: {src}"}
+    return real, None
+
+
 def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> dict:
     from scribetex.classify import parse_date
     from .prompt import build_refile_prompt, parse_result
     from .envpath import augmented_env
-    src = Path(path).expanduser()
+    src, err = _resolve_parked_note(cfg, path)
+    if err:
+        return err
     nr = _config.needs_review_dir(cfg)
-    if not src.exists() or src.parent.resolve() != nr.resolve():
-        return {"ok": False, "error": f"not a parked note: {src}"}
     date_iso = parse_date(date)
     if not date_iso:
         return {"ok": False, "error": f"unusable date: {date!r}"}
@@ -173,10 +193,10 @@ def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> 
 
 
 def _discard(cfg, path) -> dict:
-    src = Path(path).expanduser()
+    src, err = _resolve_parked_note(cfg, path)
+    if err:
+        return err
     nr = _config.needs_review_dir(cfg)
-    if not src.exists() or src.parent.resolve() != nr.resolve():
-        return {"ok": False, "error": f"not a parked note: {src}"}
     src.unlink()
     for sfx in (".review.json", ".review.txt", ".error.txt"):
         sc = nr / f"{src.name}{sfx}"

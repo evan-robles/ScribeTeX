@@ -84,3 +84,31 @@ def test_discard_removes_note_and_sidecar(tmp_path):
     assert res["ok"] is True
     assert not pdf.exists()
     assert not (tmp_path / "NeedsReview" / "d.pdf.review.json").exists()
+
+
+def test_refile_rejects_symlink_in_needsreview(tmp_path):
+    # A symlink placed in NeedsReview pointing outside must be rejected, so
+    # refile can't move/act on a file elsewhere (path-traversal-symlink guard).
+    cfg = config.load_config(env={"SCRIBETEX_INBOX": str(tmp_path)}, toml_path=None)
+    nr = tmp_path / "NeedsReview"; nr.mkdir(parents=True)
+    outside = tmp_path / "secret.pdf"; outside.write_bytes(b"%PDF-1.4 secret")
+    link = nr / "evil.pdf"
+    import os
+    os.symlink(outside, link)
+    res = appcli._refile(cfg, str(link), "Bio", "S", "Sub", "2026-08-06",
+                         invoke_fn=lambda *a, **k: "")
+    assert res["ok"] is False
+    assert outside.exists()          # target untouched
+    assert outside.read_bytes() == b"%PDF-1.4 secret"
+
+
+def test_discard_rejects_symlink_in_needsreview(tmp_path):
+    cfg = config.load_config(env={"SCRIBETEX_INBOX": str(tmp_path)}, toml_path=None)
+    nr = tmp_path / "NeedsReview"; nr.mkdir(parents=True)
+    outside = tmp_path / "keep.pdf"; outside.write_bytes(b"keep me")
+    link = nr / "evil2.pdf"
+    import os
+    os.symlink(outside, link)
+    res = appcli._discard(cfg, str(link))
+    assert res["ok"] is False
+    assert outside.exists()          # target NOT deleted
