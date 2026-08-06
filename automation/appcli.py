@@ -88,6 +88,19 @@ def _needs_review_items(cfg) -> list:
     return items
 
 
+def _process_path(cfg, src_path, *, process_fn=None) -> dict:
+    process_fn = process_fn or _ingest.process_inbox
+    src = Path(src_path).expanduser()
+    if not src.exists():
+        return {"ok": False, "error": f"file not found: {src}"}
+    inbox = Path(cfg["inbox_dir"])
+    inbox.mkdir(parents=True, exist_ok=True)
+    dest = inbox / src.name
+    if src.resolve() != dest.resolve():
+        shutil.copy2(src, dest)
+    return {"ok": True, "processed": process_fn(cfg)}
+
+
 def _emit(obj) -> int:
     print(json.dumps(obj))
     return 0
@@ -130,6 +143,11 @@ def main(argv=None) -> int:
     sub.add_parser("needs-review")
     sp = sub.add_parser("set-inbox")
     sp.add_argument("--path", required=True)
+    pp = sub.add_parser("process")
+    pp.add_argument("--path", required=True)
+    sub.add_parser("sweep")
+    sub.add_parser("install")
+    sub.add_parser("uninstall")
     args = ap.parse_args(argv)
 
     if args.cmd == "status":
@@ -140,6 +158,21 @@ def main(argv=None) -> int:
         return _emit({"ok": True, "items": _needs_review_items(cfg)})
     if args.cmd == "set-inbox":
         return _emit(_write_inbox_config(args.path, _config_toml_path()))
+    if args.cmd == "process":
+        cfg = _load()
+        return _emit(_process_path(cfg, args.path))
+    if args.cmd == "sweep":
+        cfg = _load()
+        return _emit({"ok": True, "processed": _ingest.process_inbox(cfg)})
+    if args.cmd == "install":
+        cfg = _load()
+        rc = _install.main([])
+        paths = _install.plist_paths(cfg)
+        return _emit({"ok": rc == 0, "watcher_running": paths["watch"].exists() and paths["sweep"].exists()})
+    if args.cmd == "uninstall":
+        cfg = _load()
+        _install.main(["--uninstall"])
+        return _emit({"ok": True, "watcher_running": False})
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 
