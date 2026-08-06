@@ -27,13 +27,33 @@ def _block(date_iso: str, body: str) -> str:
 
 
 def _replace_block(main_tex: str, date_iso: str, body: str) -> str:
+    """Collapse every existing block for date_iso into a single new block,
+    positioned where the first such block currently sits. Blocks for other
+    dates are untouched and their relative order is preserved.
+    """
     label = f"\\label{{sec:{date_iso}}}"
-    label_pos = main_tex.index(label)
-    sec_pos = main_tex.rindex("\\section{", 0, label_pos)
     end_marker = "% --- end transcribed body ---"
-    end_pos = main_tex.index(end_marker, label_pos)
-    block_end = main_tex.index("\n", end_pos) + 1
-    return main_tex[:sec_pos] + _block(date_iso, body) + main_tex[block_end:]
+
+    spans = []
+    search_from = 0
+    while True:
+        label_pos = main_tex.find(label, search_from)
+        if label_pos == -1:
+            break
+        sec_pos = main_tex.rindex("\\section{", 0, label_pos)
+        end_pos = main_tex.index(end_marker, label_pos)
+        block_end = main_tex.index("\n", end_pos) + 1
+        spans.append((sec_pos, block_end))
+        search_from = block_end
+
+    # Remove spans from last to first so earlier offsets stay valid, then
+    # insert the single collapsed block at the position of the first span.
+    result = main_tex
+    for sec_pos, block_end in reversed(spans):
+        result = result[:sec_pos] + result[block_end:]
+
+    insert_at = spans[0][0]
+    return result[:insert_at] + _block(date_iso, body) + result[insert_at:]
 
 
 def insert_section(main_tex: str, date_iso: str, body: str,

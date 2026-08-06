@@ -45,3 +45,21 @@ def test_duplicate_append_adds_second():
 def test_malformed_missing_markers_raises():
     with pytest.raises(MalformedDocumentError):
         insert_section("\\begin{document}\n\\end{document}\n", "2025-10-03", "x")
+
+
+def test_replace_collapses_multiple_same_date_blocks():
+    out, _ = insert_section(BASE, "2025-10-03", "first")
+    out, _ = insert_section(out, "2025-10-03", "second", on_duplicate="append")
+    # now two blocks for that date; replace must collapse to exactly one
+    out, _ = insert_section(out, "2025-10-03", "FINAL", on_duplicate="replace")
+    assert existing_dates(out) == ["2025-10-03"]
+    assert "FINAL" in out
+    assert "first" not in out and "second" not in out
+
+
+def test_replace_leaves_other_dates_intact():
+    out, _ = insert_section(BASE, "2025-09-28", "keep-early")
+    out, _ = insert_section(out, "2025-10-10", "keep-late")
+    out, _ = insert_section(out, "2025-09-28", "REPLACED", on_duplicate="replace")
+    assert existing_dates(out) == ["2025-09-28", "2025-10-10"]
+    assert "REPLACED" in out and "keep-late" in out and "keep-early" not in out
