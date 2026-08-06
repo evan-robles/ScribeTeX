@@ -169,3 +169,14 @@ handwriting, so treat filed results as reviewable, not final — check the
 notification and git history. See
 [`skills/watch-inbox/SKILL.md`](skills/watch-inbox/SKILL.md) for the full
 walkthrough and constraints.
+
+## Easy setup (menu-bar app + iPad Shortcut)
+
+For a frictionless workflow on iPad, pair the Mac menu-bar app with an iPad
+Shortcut. The menu-bar app provides a clean configuration front-end (build in
+Xcode, no code signing required), and the Shortcut sends notes from GoodNotes
+with a single tap.
+
+See:
+- **Menu-bar app:** [macapp/README.md](macapp/README.md)
+- **iPad Shortcut recipe:** [docs/shortcut-setup.md](docs/shortcut-setup.md)
