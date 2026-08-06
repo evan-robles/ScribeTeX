@@ -26,3 +26,29 @@ pip install -e ".[dev]"
 
 - `SCRIBE_TEX_NOTES_ROOT` — parent folder holding one repo per course.
   Default: `~/Desktop/College/Notes`.
+
+## Register with an MCP client
+
+Add to your MCP client config (e.g. Claude Code `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "scribe-tex": {
+      "command": "scribe-tex"
+    }
+  }
+}
+```
+
+Or run directly: `python -m scribe_tex.server`.
+
+## Workflow
+
+1. Drop a handwritten note export path into chat: *"process ~/Downloads/linalg-oct3.pdf"*.
+2. The agent calls `prepare_note`, reads the page images, transcribes to LaTeX,
+   and infers the course + date.
+3. The agent calls `resolve_placement` and shows you the detected course, date,
+   target file, and whether that date already exists — you confirm.
+4. The agent calls `write_section`; the note is filed into the course's
+   `main.tex` as a dated section, in date order.
