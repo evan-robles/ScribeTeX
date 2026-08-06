@@ -47,6 +47,15 @@ def test_write_duplicate_warns(root):
     assert "duplicate" in r["error"].lower()
 
 
+def test_resolve_duplicate_reports_duplicate_position(root):
+    server._write_section("MATH 257 Linear Algebra", "2025-10-03", "x")
+    r = server._resolve_placement("linear algebra", "2025-10-03")
+    assert r["course_status"] == "existing"
+    assert r["duplicate"] is True
+    assert "duplicate" in r["insert_position"].lower()
+    assert "2025-10-03" in r["insert_position"]
+
+
 def test_prepare_note_reports_root_and_courses(root):
     server._write_section("MATH 257 Linear Algebra", "2025-10-03", "x")
     # use a tiny generated PDF via FileSource path

@@ -53,7 +53,9 @@ def _resolve_placement(course_hint: str, date: str) -> dict:
     if date_iso and status == "existing" and target.exists():
         plan = plan_insertion(target.read_text(encoding="utf-8"), date_iso)
         duplicate = plan["duplicate"]
-        if plan["after_date"]:
+        if duplicate:
+            insert_position = f"duplicate of existing section dated {date_iso}"
+        elif plan["after_date"]:
             insert_position = f"after section dated {plan['after_date']}"
 
     if not date_iso:
