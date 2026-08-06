@@ -29,7 +29,14 @@ pip install -e ".[dev]"
 
 ## Register with an MCP client
 
-Add to your MCP client config (e.g. Claude Code `.mcp.json`):
+First install the package so the `scribe-tex` console command resolves:
+
+```bash
+pip install -e .
+```
+
+Then add to your MCP client config (e.g. Claude Code `.mcp.json`, or the
+`mcpServers` block of `~/.claude.json`):
 
 ```json
 {
@@ -41,7 +48,19 @@ Add to your MCP client config (e.g. Claude Code `.mcp.json`):
 }
 ```
 
-Or run directly: `python -m scribe_tex.server`.
+Or run directly: `python -m scribe_tex.server`. The server ships an
+`instructions` prompt that tells the calling agent the exact prepare → transcribe
+→ resolve → confirm → write workflow.
+
+## Compiling a course
+
+The server is write-only. Each course folder gets a full standalone template
+(`main.tex` + a local `main.bib` + `ExtFiles/`). Because the template uses
+`biblatex` with the `biber` backend, compile with:
+
+```bash
+pdflatex main && biber main && pdflatex main && pdflatex main
+```
 
 ## Workflow
 

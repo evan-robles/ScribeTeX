@@ -6,20 +6,26 @@ from scribe_tex.preamble import (
 )
 
 
-def test_preamble_has_no_subfiles_wiring():
-    # v1 uses standalone main.tex per course; subfiles machinery must be gone.
-    assert "subfiles" not in PREAMBLE_BODY
-    assert "subfix" not in PREAMBLE_BODY
-    assert "addbibresource" not in PREAMBLE_BODY
+def test_preamble_is_self_contained_for_standalone_folder():
+    # The full preamble is used verbatim; its bib resource and graphics path
+    # are LOCAL (main.bib / ExtFiles/), created beside main.tex by the scaffold,
+    # never a parent-directory path. Assert against the RENDERED output (the raw
+    # PREAMBLE_BODY has doubled braces for str.format).
+    rendered = render_preamble(footer_name="Robles", course_number="X")
+    assert r"\addbibresource{main.bib}" in rendered
+    assert r"\graphicspath{{ExtFiles/}}" in rendered
+    assert "../main.bib" not in rendered
+    assert "../ExtFiles" not in rendered
 
 
 def test_preamble_keeps_core_math_packages():
-    for pkg in ("amsmath", "amssymb", "mathtools", "physics"):
+    for pkg in ("amsmath", "amssymb", "mathtools", "physics", "biblatex",
+                "subfiles", "braket"):
         assert pkg in ALLOWED_PACKAGES
 
 
 def test_allowed_macros_include_custom_commands():
-    for macro in (r"\R", r"\prb", r"\e", r"\Dstroke", r"\pKa"):
+    for macro in (r"\R", r"\pKa", r"\Dstroke", r"\ee", r"\asym", r"\chemint"):
         assert macro in ALLOWED_MACROS
 
 

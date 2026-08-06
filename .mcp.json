@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "scribe-tex": {
+      "command": "scribe-tex",
+      "args": [],
+      "env": {}
+    }
+  }
+}
