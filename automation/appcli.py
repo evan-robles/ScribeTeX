@@ -79,17 +79,29 @@ def _needs_review_items(cfg) -> list:
         return []
     items = []
     for p in sorted(nr.iterdir()):
-        if not p.is_file() or p.suffix == ".txt":
+        if not p.is_file() or p.suffix in (".json", ".txt"):
             continue
+        jpath = nr / f"{p.name}.review.json"
         review = nr / f"{p.name}.review.txt"
         error = nr / f"{p.name}.error.txt"
-        if review.exists():
-            kind, reason = "ambiguous", review.read_text().strip()
+        reason, kind = None, "unknown"
+        guess = {"course": None, "section": None, "subsection": None, "date": None}
+        if jpath.exists():
+            try:
+                data = json.loads(jpath.read_text())
+                reason = data.get("reason")
+                kind = data.get("kind", "unknown")
+                g = data.get("guess") or {}
+                for k in guess:
+                    guess[k] = g.get(k)
+            except Exception:
+                reason, kind = "unreadable review sidecar", "unknown"
+        elif review.exists():
+            reason, kind = review.read_text().strip(), "ambiguous"
         elif error.exists():
-            kind, reason = "error", error.read_text().strip()
-        else:
-            kind, reason = "unknown", None
-        items.append({"name": p.name, "path": str(p), "reason": reason, "kind": kind})
+            reason, kind = error.read_text().strip(), "error"
+        items.append({"name": p.name, "path": str(p), "reason": reason,
+                      "kind": kind, **guess})
     return items
 
 

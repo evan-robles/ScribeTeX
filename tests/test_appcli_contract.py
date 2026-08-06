@@ -5,7 +5,8 @@ STATUS_KEYS = {
     "ok", "watcher_running", "inbox_dir", "filed_today", "filed_total",
     "needs_review_count", "claude_ok", "settle_seconds", "sweep_seconds",
 }
-NEEDS_REVIEW_ITEM_KEYS = {"name", "path", "reason", "kind"}
+NEEDS_REVIEW_ITEM_KEYS = {"name", "path", "reason", "kind",
+                          "course", "section", "subsection", "date"}
 
 
 def test_status_contract(tmp_path):
