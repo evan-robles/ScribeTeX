@@ -55,7 +55,7 @@ the MCP server is launched via `python3 -m scribetex.server` with
 
 ## Skills
 
-The plugin bundles four self-contained skills (each a `SKILL.md` + `scripts/`):
+The plugin bundles five self-contained skills (each a `SKILL.md` + `scripts/`):
 
 - **process-note** — render a note export and file a transcription under a topic
   section of a course document (the end-to-end workflow).
@@ -65,6 +65,8 @@ The plugin bundles four self-contained skills (each a `SKILL.md` + `scripts/`):
 - **compile-course** — build a course's `main.tex` to PDF via
   `pdflatex → biber → pdflatex → pdflatex` (requires a local TeX install; this is
   the only place ScribeTeX compiles).
+- **watch-inbox** — install launchd agents that auto-transcribe and file any
+  note dropped into a watched inbox folder (see "Automatic ingest" below).
 
 ## Figures
 
@@ -128,3 +130,42 @@ pdflatex main && biber main && pdflatex main && pdflatex main
    chosen section (new vs existing), the date, and any duplicate — you confirm.
 4. The agent calls `write_section`; the note is filed into the course's
    `main.tex` as a `\subsection` under the chosen topic `\section`.
+
+## Automatic ingest (watch a folder)
+
+Instead of invoking ScribeTeX by hand, you can point it at an inbox folder and
+have new notes filed automatically. This is the `watch-inbox` skill, backed by
+two macOS `launchd` agents: an instant folder-watch plus a periodic safety-net
+sweep.
+
+Configure the inbox in `~/.config/scribetex/automation.toml` (or the
+`SCRIBETEX_INBOX` env var):
+
+```toml
+inbox_dir = "/Users/you/Library/CloudStorage/GoogleDrive-.../ScribeTeX-Inbox"
+sweep_seconds = 600
+settle_seconds = 4
+```
+
+Then install, check, or remove the agents:
+
+```bash
+python skills/watch-inbox/scripts/run.py install
+python skills/watch-inbox/scripts/run.py status
+python skills/watch-inbox/scripts/run.py sweep      # process the inbox once, now
+python skills/watch-inbox/scripts/run.py uninstall
+```
+
+Each note dropped into the inbox resolves to one of three outcomes:
+
+- **Filed** — transcribed and written into the course document; the PDF moves
+  to `<inbox>/Done/YYYY-MM-DD/` and you get a desktop notification.
+- **Needs review** — the course/section/date was ambiguous; nothing is written
+  and the PDF moves to `<inbox>/NeedsReview/` with a `.review.txt` explaining why.
+- **Error** — the PDF stays in the inbox and the next sweep retries.
+
+Unattended transcription spends vision tokens on every run and can misread
+handwriting, so treat filed results as reviewable, not final — check the
+notification and git history. See
+[`skills/watch-inbox/SKILL.md`](skills/watch-inbox/SKILL.md) for the full
+walkthrough and constraints.
