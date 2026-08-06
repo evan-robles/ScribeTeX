@@ -1,0 +1,49 @@
+# tests/test_automation_state.py
+from pathlib import Path
+from automation import state
+
+
+def test_identity_changes_with_size(tmp_path):
+    p = tmp_path / "a.pdf"
+    p.write_bytes(b"12345")
+    id1 = state.identity(p)
+    p.write_bytes(b"1234567890")
+    id2 = state.identity(p)
+    assert id1 != id2
+    assert p.name in id1
+
+
+def test_seen_roundtrip(tmp_path):
+    sf = tmp_path / ".scribetex" / "seen.json"
+    assert state.load_seen(sf) == set()
+    state.mark_seen(sf, "k1")
+    state.mark_seen(sf, "k2")
+    assert state.load_seen(sf) == {"k1", "k2"}
+
+
+def test_seen_malformed_is_empty(tmp_path):
+    sf = tmp_path / "seen.json"
+    sf.write_text("{not json")
+    assert state.load_seen(sf) == set()
+
+
+def test_lock_acquire_then_blocked(tmp_path):
+    lf = tmp_path / "ingest.lock"
+    assert state.acquire_lock(lf, pid=111, pid_alive=lambda pid: True) is True
+    # a second acquirer sees a live holder -> blocked
+    assert state.acquire_lock(lf, pid=222, pid_alive=lambda pid: True) is False
+
+
+def test_lock_reclaims_stale(tmp_path):
+    lf = tmp_path / "ingest.lock"
+    assert state.acquire_lock(lf, pid=111, pid_alive=lambda pid: True) is True
+    # holder 111 is dead -> 222 reclaims
+    assert state.acquire_lock(lf, pid=222, pid_alive=lambda pid: False) is True
+
+
+def test_release_lock(tmp_path):
+    lf = tmp_path / "ingest.lock"
+    state.acquire_lock(lf, pid=111, pid_alive=lambda pid: True)
+    state.release_lock(lf)
+    assert not lf.exists()
+    state.release_lock(lf)  # idempotent, no raise
