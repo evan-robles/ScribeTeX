@@ -12,7 +12,8 @@ def test_full_flow(tmp_path, monkeypatch):
     assert prep["page_images"]
 
     # 2. agent "transcribes" + infers course/section/date -> resolve
-    res = server._resolve_placement("Organic Chemistry", "Characterization", "Oct 3 2025")
+    res = server._resolve_placement("Organic Chemistry", "Characterization", "NMR",
+                                    "Oct 3 2025")
     assert res["course_status"] == "new"
     assert res["date_iso"] == "2025-10-03"
 
@@ -26,7 +27,10 @@ def test_full_flow(tmp_path, monkeypatch):
                           "Electrophilic Addition", "Markovnikov...", "2025-10-05")
     main_tex = (tmp_path / "Organic-Chemistry" / "main.tex").read_text()
     assert existing_sections(main_tex) == ["Characterization", "Reaction Mechanisms"]
-    assert existing_note_labels(main_tex) == ["2025-10-03", "2025-10-05"]
+    assert existing_note_labels(main_tex) == [
+        "2025-10-03:characterization:nmr",
+        "2025-10-05:reaction-mechanisms:electrophilic-addition",
+    ]
 
     # 5. a third note under an EXISTING section appends within it
     server._write_section("Organic Chemistry", "Characterization",

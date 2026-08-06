@@ -10,16 +10,18 @@ def root(tmp_path, monkeypatch):
 
 
 def test_resolve_new_course(root):
-    r = server._resolve_placement("Organic Chemistry", "Techniques", "Oct 3 2025")
+    r = server._resolve_placement("Organic Chemistry", "Techniques", "NMR",
+                                  "Oct 3 2025")
     assert r["course_status"] == "new"
     assert r["section_title"] == "Techniques"
+    assert r["subsection_title"] == "NMR"
     assert r["date_iso"] == "2025-10-03"
     assert r["date_display"] == "October 3, 2025"
     assert r["duplicate"] is False
 
 
 def test_resolve_bad_date(root):
-    r = server._resolve_placement("Whatever", "Topic", "someday")
+    r = server._resolve_placement("Whatever", "Topic", "Sub", "someday")
     assert r["match_confidence"] == "low"
     assert r["date_iso"] is None
 
@@ -31,7 +33,7 @@ def test_write_scaffolds_and_inserts(root):
     assert r["compiled"] is False
     main_tex = (root / "Organic-Chemistry" / "main.tex").read_text()
     assert existing_sections(main_tex) == ["Techniques"]
-    assert existing_note_labels(main_tex) == ["2025-10-03"]
+    assert existing_note_labels(main_tex) == ["2025-10-03:techniques:nmr"]
     assert "hello" in main_tex
     assert r"\subsection{NMR}" in main_tex
 
@@ -39,7 +41,8 @@ def test_write_scaffolds_and_inserts(root):
 def test_write_then_resolve_sees_existing_course_and_section(root):
     server._write_section("Organic Chemistry", "Techniques", "NMR", "x",
                           "2025-10-03")
-    r = server._resolve_placement("organic chemistry", "Techniques", "2025-10-10")
+    r = server._resolve_placement("organic chemistry", "Techniques", "NMR",
+                                  "2025-10-10")
     assert r["course_status"] == "existing"
     assert r["course"] == "Organic Chemistry"
     assert r["section_status"] == "existing"
@@ -49,7 +52,8 @@ def test_write_then_resolve_sees_existing_course_and_section(root):
 def test_resolve_new_section_in_existing_course(root):
     server._write_section("Organic Chemistry", "Techniques", "NMR", "x",
                           "2025-10-03")
-    r = server._resolve_placement("organic chemistry", "Mechanisms", "2025-10-10")
+    r = server._resolve_placement("organic chemistry", "Mechanisms", "Addition",
+                                  "2025-10-10")
     assert r["course_status"] == "existing"
     assert r["section_status"] == "new"
 
@@ -66,7 +70,8 @@ def test_write_duplicate_warns(root):
 def test_resolve_duplicate_flag(root):
     server._write_section("Organic Chemistry", "Techniques", "NMR", "x",
                           "2025-10-03")
-    r = server._resolve_placement("organic chemistry", "Techniques", "2025-10-03")
+    r = server._resolve_placement("organic chemistry", "Techniques", "NMR",
+                                  "2025-10-03")
     assert r["course_status"] == "existing"
     assert r["duplicate"] is True
 
