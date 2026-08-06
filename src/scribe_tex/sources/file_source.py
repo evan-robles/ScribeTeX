@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from .base import NoteSource, register
+from .base import register
 
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
 

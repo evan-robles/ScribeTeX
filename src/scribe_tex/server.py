@@ -1,6 +1,5 @@
 """FastMCP server: prepare_note, resolve_placement, write_section."""
 from __future__ import annotations
-from pathlib import Path
 
 from fastmcp import FastMCP
 
