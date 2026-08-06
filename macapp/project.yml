@@ -1,0 +1,39 @@
+name: ScribeTeX
+options:
+  bundleIdPrefix: com.scribetex
+  deploymentTarget:
+    macOS: "13.0"   # MenuBarExtra requires macOS 13 (Ventura) or newer
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+
+targets:
+  ScribeTeX:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - path: ScribeTeX
+    info:
+      path: ScribeTeX/Info.plist
+      properties:
+        CFBundleDisplayName: ScribeTeX
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "13.0"
+        # Menu-bar-only agent: no Dock icon, no main window.
+        LSUIElement: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.scribetex.menubar
+        PRODUCT_NAME: ScribeTeX
+        GENERATE_INFOPLIST_FILE: false
+        ENABLE_HARDENED_RUNTIME: true
+        # Ad-hoc signing so an unsigned dev build launches locally.
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
+        COMBINE_HIDPI_IMAGES: true
