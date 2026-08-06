@@ -20,6 +20,7 @@ REQUIRED = {
     "fastmcp": "fastmcp>=2.0",
     "fitz": "pymupdf>=1.24",
     "dateutil": "python-dateutil>=2.9",
+    "PIL": "pillow>=10",
 }
 
 

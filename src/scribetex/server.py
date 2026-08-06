@@ -11,6 +11,7 @@ from .sources.base import get_source
 from .scaffold import scaffold_course
 from .writer import insert_note, DuplicateNoteError, MalformedDocumentError
 from .placement import existing_sections, existing_note_labels, note_key
+from . import figures
 
 SERVER_INSTRUCTIONS = r"""
 ScribeTeX turns a handwritten note export (PDF or image, e.g. from GoodNotes or
@@ -39,9 +40,11 @@ STEP 2 — TRANSCRIBE (you, from the page images)
   - Structure the note's content with \subsection{...} (and lower) per topic.
   - Use $...$ / align / equation for math. \ce{...} (mhchem) is available.
   - Use ONLY the packages/macros the brief lists as available.
-  - Transcribe faithfully; NEVER invent content not on the page. Render
-    hand-drawn diagrams you cannot reproduce as faithful prose + equations, and
-    tell the user which drawings were described rather than reproduced.
+  - Transcribe faithfully; NEVER invent content not on the page. For hand-drawn
+    diagrams, prefer this priority: (1) reproduce faithfully as TikZ/pgfplots if
+    feasible; (2) otherwise call save_figure to crop the drawing out of the page
+    image into ExtFiles/ and \includegraphics it; (3) only as a last resort,
+    describe it in prose + equations. Tell the user which path each drawing took.
   - Also DECIDE and EXTRACT: a course hint; a top-level SECTION title naming the
     note's overall theme; a concise SUBSECTION title for this note; and the class
     date. If the course, section, or date is missing/ambiguous, ASK THE USER —
@@ -187,6 +190,15 @@ def _write_section(course: str, section_title: str, subsection_title: str,
             "diff_summary": summary, "compiled": False}
 
 
+def _save_figure(course: str, page_image: str, bbox, name: str) -> dict:
+    try:
+        res = figures.crop_to_extfiles(page_image, bbox, course, name)
+    except (FileNotFoundError, ValueError) as e:
+        return {"saved": False, "error": str(e)}
+    res["include"] = f"\\includegraphics[width=0.8\\linewidth]{{{res['filename'][:-4]}}}"
+    return res
+
+
 @mcp.tool
 def prepare_note(source: str = "file", ref: str = "") -> dict:
     """Render a handwritten note export to page images and return the
@@ -258,6 +270,25 @@ def write_section(course: str, section_title: str, subsection_title: str,
     server is write-only and never compiles LaTeX."""
     return _write_section(course, section_title, subsection_title, latex_body,
                           date, course_number, on_duplicate)
+
+
+@mcp.tool
+def save_figure(course: str, page_image: str, bbox: list[float], name: str) -> dict:
+    """Crop a region of a rendered note page into the course's ExtFiles/ so a
+    freehand drawing can be embedded with \\includegraphics. Use this only when a
+    figure cannot be faithfully reproduced as TikZ/pgfplots/tabular.
+
+    Args:
+        course: the course NAME (same value you pass to write_section); the crop
+            is written under that course's ExtFiles/.
+        page_image: absolute path to a page PNG returned by prepare_note.
+        bbox: [x0, y0, x1, y1] as fractions in [0,1] of the page width/height,
+            origin top-left (e.g. [0.1, 0.4, 0.9, 0.7] = a middle horizontal band).
+        name: base filename (no extension); sanitized to [A-Za-z0-9_-].
+    Returns {"saved": true, filename, path, include (a ready \\includegraphics
+    snippet)} or {"saved": false, "error": ...}. \\graphicspath already points at
+    ExtFiles/, so \\includegraphics{<name>} resolves without a path prefix."""
+    return _save_figure(course, page_image, bbox, name)
 
 
 def main() -> None:
