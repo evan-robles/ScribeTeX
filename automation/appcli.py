@@ -154,8 +154,11 @@ def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> 
                                   capture_output=True, text=True, timeout=1800,
                                   env=augmented_env())
             return proc.stdout or ""
-    stdout = invoke_fn(build_refile_prompt(str(src), course, section, subsection, date_iso),
-                       cfg["claude_bin"])
+    try:
+        prompt_text = build_refile_prompt(str(src), course, section, subsection, date_iso)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    stdout = invoke_fn(prompt_text, cfg["claude_bin"])
     result = parse_result(stdout)
     if result.get("status") != "filed":
         return {"ok": False, "error": result.get("reason", "re-file did not complete")}

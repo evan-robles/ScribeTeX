@@ -23,6 +23,16 @@ def _validate_note_path(note_path) -> str:
     return s
 
 
+def _validate_field(value, field_name) -> str:
+    s = str(value)
+    bad = sorted({c for c in s if c in _UNSAFE_CHARS})
+    if bad:
+        raise UnsafeNotePathError(
+            f"{field_name} contains unsafe characters {bad!r}; refusing to build a prompt"
+        )
+    return s
+
+
 def build_prompt(note_path) -> str:
     note_path = _validate_note_path(note_path)
     return f"""You are ScribeTeX's unattended ingest worker. Process EXACTLY ONE \
@@ -59,6 +69,10 @@ The {RESULT_PREFIX} line MUST be valid JSON after the prefix. Print nothing afte
 
 
 def build_refile_prompt(note_path, course, section, subsection, date) -> str:
+    note_path = _validate_note_path(note_path)
+    course = _validate_field(course, "course")
+    section = _validate_field(section, "section")
+    subsection = _validate_field(subsection, "subsection")
     return f"""You are ScribeTeX's re-file worker. The placement is ALREADY \
 decided by the user — do not second-guess it.
 
