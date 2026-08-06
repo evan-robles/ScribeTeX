@@ -74,10 +74,10 @@ final class AppModel: ObservableObject {
     }
 
     static func describe(_ error: Error) -> String {
-        if case BridgeError.noRepo = error {
-            return "ScribeTeX repo location is not set."
-        }
-        return error.localizedDescription
+        // BridgeError conforms to LocalizedError, so localizedDescription
+        // carries the useful message (repo missing, nonzero exit + stderr,
+        // or a bridge-reported ok==false error string).
+        error.localizedDescription
     }
 }
 
