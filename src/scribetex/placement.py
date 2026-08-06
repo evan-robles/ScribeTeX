@@ -53,7 +53,11 @@ def existing_sections(main_tex: str) -> list[str]:
 
 
 def existing_note_labels(main_tex: str) -> list[str]:
-    """ISO dates from ``\\label{note:...}`` anchors, in document order."""
+    """Composite note keys from ``\\label{note:...}`` anchors, in document order.
+
+    Each key is the text after ``note:`` — either a composite
+    ``date:section-slug:subsection-slug`` or a legacy date-only label.
+    """
     return _NOTE_LABEL_RE.findall(main_tex)
 
 

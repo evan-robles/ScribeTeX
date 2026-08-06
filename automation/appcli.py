@@ -21,7 +21,7 @@ def _config_toml_path() -> Path:
     return Path.home() / ".config" / "scribetex" / "automation.toml"
 
 
-def _load(argv_inbox=None):
+def _load():
     return _config.load_config(toml_path=_config_toml_path())
 
 
@@ -150,6 +150,13 @@ def main(argv=None) -> int:
     sub.add_parser("uninstall")
     args = ap.parse_args(argv)
 
+    try:
+        return _dispatch(args)
+    except Exception as e:  # config load / engine errors -> clean JSON, exit 0
+        return _emit({"ok": False, "error": str(e)})
+
+
+def _dispatch(args) -> int:
     if args.cmd == "status":
         cfg = _load()
         return _emit(_status_dict(cfg))
@@ -170,7 +177,6 @@ def main(argv=None) -> int:
         paths = _install.plist_paths(cfg)
         return _emit({"ok": rc == 0, "watcher_running": paths["watch"].exists() and paths["sweep"].exists()})
     if args.cmd == "uninstall":
-        cfg = _load()
         _install.main(["--uninstall"])
         return _emit({"ok": True, "watcher_running": False})
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})

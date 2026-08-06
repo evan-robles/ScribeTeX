@@ -40,7 +40,13 @@ def load_config(env=None, toml_path=None) -> dict:
             cfg[key] = env[var]
 
     for k in _INT_KEYS:
-        cfg[k] = int(cfg[k])
+        try:
+            cfg[k] = int(cfg[k])
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"{_ENV[k]} must be an integer number of seconds; "
+                f"got {cfg[k]!r} which is not a valid integer"
+            )
     for k in _PATH_KEYS:
         cfg[k] = Path(cfg[k]).expanduser()
     return cfg

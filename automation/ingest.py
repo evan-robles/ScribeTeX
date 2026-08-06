@@ -11,8 +11,6 @@ from . import config as _config
 from . import readiness, state
 from .prompt import build_prompt, parse_result
 
-_IGNORE_DIRS = {"Done", "NeedsReview", ".scribetex"}
-
 # Cap on consecutive error outcomes for the same file identity before it is
 # dead-lettered to NeedsReview/ instead of being retried forever.
 MAX_ERROR_ATTEMPTS = 3
