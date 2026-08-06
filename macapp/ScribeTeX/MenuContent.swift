@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 ///  - Locate ScribeTeX… / Refresh / Quit
 struct MenuContent: View {
     @ObservedObject var model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -152,6 +153,12 @@ struct MenuContent: View {
             } label: {
                 Label("Needs Review (\(model.reviewItems.count))",
                       systemImage: "tray.full")
+            }
+            // Full editor: set course/section/subsection/date and re-file.
+            Button {
+                openWindow(id: "review")
+            } label: {
+                Label("Review Notes…", systemImage: "square.and.pencil")
             }
         }
     }

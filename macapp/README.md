@@ -75,6 +75,32 @@ filing will not work without it.
 
 ---
 
+## Review window
+
+Some notes can't be auto-filed — the transcriber couldn't confidently infer the
+course or date, so they're parked in a review queue instead of guessed into the
+wrong place.
+
+- **Notifications.** When new notes land in review, the app posts a native macOS
+  notification ("N ScribeTeX note(s) need review"). macOS **prompts for
+  notification permission on first launch**; if you decline, the queue still
+  works — you just won't get banners. Tapping a notification brings the app
+  forward and opens the Review window.
+- **Opening it manually.** Use **Review Notes…** in the menu (shown whenever the
+  queue is non-empty).
+- **Re-filing.** Each parked note shows its name and the reason it was held,
+  plus an editable form: a **Course** picker (populated from the courses already
+  on disk, with a **New course…** option), **Section** / **Subsection** fields,
+  and a **Date** picker. These are pre-filled from the transcriber's best-effort
+  guesses when available. Click **Re-file** to file it with your corrections, or
+  **Discard** to drop it from the queue without filing.
+
+> ⚠️ **Re-filing re-transcribes the note.** It re-runs Claude on the image, so
+> it **spends tokens and takes ~2 minutes.** The button is disabled while a
+> bridge action is in flight.
+
+---
+
 ## Free / unsigned distribution (no Apple Developer account)
 
 You do **not** need a paid Apple Developer account to run or share this app.
@@ -135,6 +161,9 @@ Every action maps to one frozen `automation.appcli` command:
 | Needs Review submenu | `needs-review` |
 | Pick Inbox… | `set-inbox --path <dir>` |
 | Process a File… / drag-drop / review item | `process --path <file>` |
+| Review window course picker | `known-courses` |
+| Review window **Re-file** | `refile --path <file> --course C --section S --subsection Sub --date D` |
+| Review window **Discard** | `discard --path <file>` |
 | Start Watcher | `install` |
 | Stop Watcher | `uninstall` |
 
@@ -144,8 +173,9 @@ Every action maps to one frozen `automation.appcli` command:
 
 | File | Purpose |
 | --- | --- |
-| `ScribeTeX/ScribeTeXApp.swift` | `@main` `MenuBarExtra` app + polling `AppModel` |
+| `ScribeTeX/ScribeTeXApp.swift` | `@main` `MenuBarExtra` app + polling `AppModel` + notifications |
 | `ScribeTeX/MenuContent.swift` | The menu-bar popover UI |
+| `ScribeTeX/ReviewWindow.swift` | The Review window (re-file / discard parked notes) |
 | `ScribeTeX/Bridge.swift` | `Process`-based wrapper around `automation.appcli` |
 | `ScribeTeX/Models.swift` | `Codable` structs matching the bridge JSON contract |
 | `ScribeTeX/Info.plist` | Bundle metadata (`LSUIElement`) |

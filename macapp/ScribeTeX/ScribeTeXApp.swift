@@ -1,4 +1,6 @@
 import SwiftUI
+import AppKit
+import UserNotifications
 
 /// Observable store that owns the app's live view of the bridge state.
 ///
@@ -16,6 +18,11 @@ final class AppModel: ObservableObject {
     @Published var needsRepo: Bool = Bridge.repoRoot == nil
 
     private var timer: Timer?
+    /// Last observed `needs_review_count`, used to fire a notification only when
+    /// the count *rises* (a new note landed in review), not on every poll.
+    /// `nil` until the first successful status read, so the initial load does
+    /// not spam a notification for a pre-existing backlog.
+    private var lastReviewCount: Int?
 
     /// Begin periodic polling. Safe to call more than once (idempotent).
     func start(interval: TimeInterval = 15) {
@@ -68,9 +75,33 @@ final class AppModel: ObservableObject {
             lastError = failure
             return
         }
+        if let status {
+            let newCount = status.needs_review_count
+            // Fire only on a rise, and never on the very first read.
+            if let previous = lastReviewCount, newCount > previous {
+                notifyReviewNeeded(count: newCount)
+            }
+            lastReviewCount = newCount
+        }
         self.status = status
         reviewItems = items
         lastError = nil
+    }
+
+    /// Post a local notification announcing that notes need review. Tapping it
+    /// opens the Review window (see `NotificationDelegate`).
+    private func notifyReviewNeeded(count: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "ScribeTeX"
+        let noun = count == 1 ? "note needs" : "notes need"
+        content.body = "\(count) ScribeTeX \(noun) review."
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "scribetex.needs-review",
+            content: content,
+            trigger: nil // deliver immediately
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 
     /// Run a bridge action off the main thread, then refresh the UI.
@@ -103,16 +134,78 @@ final class AppModel: ObservableObject {
     }
 }
 
+/// Shared bus between the AppKit notification-center delegate (which cannot
+/// reach SwiftUI's `openWindow`) and the SwiftUI scene graph. When the user
+/// taps a review notification, the delegate flips `openReviewRequested`; a tiny
+/// observer view inside the MenuBarExtra reacts and calls `openWindow`.
+@MainActor
+final class NotificationRouter: ObservableObject {
+    static let shared = NotificationRouter()
+    @Published var openReviewRequested: Bool = false
+}
+
+/// UNUserNotificationCenter delegate: shows banners while the app is frontmost
+/// and opens the Review window when a notification is tapped.
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    /// Show the banner even when ScribeTeX is the active app.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+
+    /// User tapped the notification — bring the app forward and request the
+    /// Review window.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        Task { @MainActor in
+            NSApp.activate(ignoringOtherApps: true)
+            NotificationRouter.shared.openReviewRequested = true
+        }
+        completionHandler()
+    }
+}
+
+/// AppKit lifecycle shim: installs the notification-center delegate and requests
+/// authorization once, at launch.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let notificationDelegate = NotificationDelegate()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = notificationDelegate
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in
+            // Result ignored: if the user declines, we simply do not post
+            // banners; the in-app Review window still works from the menu.
+        }
+    }
+}
+
 @main
 struct ScribeTeXApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
+    @StateObject private var router = NotificationRouter.shared
 
     var body: some Scene {
         MenuBarExtra("ScribeTeX", systemImage: menuBarSymbol) {
             MenuContent(model: model)
                 .onAppear { model.start() }
+                .background(ReviewWindowOpener(router: router))
         }
         .menuBarExtraStyle(.window)
+
+        // A dedicated window for reviewing/re-filing parked notes. Opened from
+        // the "Review Notes…" menu row or by tapping a notification.
+        Window("Review Notes", id: "review") {
+            ReviewWindow(model: model)
+        }
+        .windowResizability(.contentSize)
     }
 
     /// Icon reflects at-a-glance health: filled when the watcher is running,
@@ -122,5 +215,23 @@ struct ScribeTeXApp: App {
             return "doc.text.magnifyingglass"
         }
         return (model.status?.watcher_running == true) ? "doc.text.fill" : "doc.text"
+    }
+}
+
+/// Invisible helper that lives inside the SwiftUI scene so it has access to the
+/// `openWindow` environment action, and drives it from the notification router.
+private struct ReviewWindowOpener: View {
+    @ObservedObject var router: NotificationRouter
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onChange(of: router.openReviewRequested) { requested in
+                if requested {
+                    openWindow(id: "review")
+                    router.openReviewRequested = false
+                }
+            }
     }
 }

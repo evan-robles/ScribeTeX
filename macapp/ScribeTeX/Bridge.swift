@@ -133,6 +133,28 @@ enum Bridge {
     static func install() throws -> ActionResult { try action(["install"]) }
     @discardableResult
     static func uninstall() throws -> ActionResult { try action(["uninstall"]) }
+
+    /// The course directory names that already exist, for the Review window's
+    /// course picker.
+    static func knownCourses() throws -> [String] {
+        try JSONDecoder().decode(CoursesList.self, from: run(["known-courses"])).courses
+    }
+
+    /// Re-file a parked note with a user-corrected course/section/subsection/
+    /// date. This re-transcribes the note (spends Claude tokens), so it is
+    /// slow — run it inside `AppModel.perform`.
+    @discardableResult
+    static func refile(path: String, course: String, section: String,
+                       subsection: String, date: String) throws -> ActionResult {
+        try action(["refile", "--path", path, "--course", course,
+                    "--section", section, "--subsection", subsection, "--date", date])
+    }
+
+    /// Drop a parked note from the review queue without filing it.
+    @discardableResult
+    static func discard(path: String) throws -> ActionResult {
+        try action(["discard", "--path", path])
+    }
 }
 
 enum BridgeError: LocalizedError {

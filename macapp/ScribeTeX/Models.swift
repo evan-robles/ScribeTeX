@@ -18,7 +18,16 @@ struct ReviewItem: Codable, Identifiable {
     let path: String
     let reason: String?
     let kind: String
+    // Best-effort routing guesses parked in the `.review.json` sidecar; all
+    // nullable because a note may land in review precisely because they could
+    // not be inferred.
+    let course: String?
+    let section: String?
+    let subsection: String?
+    let date: String?
 }
 
 struct ReviewList: Codable { let ok: Bool; let items: [ReviewItem] }
+/// Response of `known-courses`: the course directory names already on disk.
+struct CoursesList: Codable { let ok: Bool; let courses: [String] }
 struct ActionResult: Codable { let ok: Bool; let watcher_running: Bool? ; let error: String? }
