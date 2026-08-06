@@ -50,6 +50,24 @@ def test_status_counts(tmp_path):
     assert st["claude_ok"] is False
 
 
+def test_status_needs_review_count_excludes_json_sidecar(tmp_path):
+    cfg = _cfg(tmp_path)
+    # 1 needs-review note + its .review.json sidecar -> count must be 1, not 2
+    _touch(tmp_path / "NeedsReview" / "a.pdf")
+    (tmp_path / "NeedsReview" / "a.pdf.review.json").write_text(
+        json.dumps({"reason": "no date", "kind": "ambiguous",
+                    "guess": {"course": None, "section": None,
+                              "subsection": None, "date": None}})
+    )
+    st = appcli._status_dict(
+        cfg,
+        plist_paths_fn=lambda c: {"watch": tmp_path / "w", "sweep": tmp_path / "s"},
+        which_fn=lambda b: None,
+        now_fn=lambda: datetime.datetime(2026, 8, 6),
+    )
+    assert st["needs_review_count"] == 1
+
+
 def test_status_watcher_running_when_both_plists_exist(tmp_path):
     cfg = _cfg(tmp_path)
     w = tmp_path / "w.plist"; s = tmp_path / "s.plist"

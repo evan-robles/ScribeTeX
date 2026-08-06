@@ -57,7 +57,8 @@ def _status_dict(cfg, *, plist_paths_fn=None, which_fn=None, now_fn=None) -> dic
     needs_review_count = 0
     if nr.exists():
         needs_review_count = sum(
-            1 for p in nr.iterdir() if p.is_file() and p.suffix != ".txt"
+            1 for p in nr.iterdir()
+            if p.is_file() and p.suffix not in (".json", ".txt")
         )
 
     return {
