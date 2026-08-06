@@ -110,7 +110,7 @@ def _render_toml(data: dict) -> str:
     lines = []
     for k, v in data.items():
         if isinstance(v, str):
-            lines.append(f'{k} = "{v}"')
+            lines.append(f"{k} = {json.dumps(v)}")
         elif isinstance(v, bool):
             lines.append(f"{k} = {'true' if v else 'false'}")
         else:

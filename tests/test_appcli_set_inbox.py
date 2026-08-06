@@ -35,3 +35,46 @@ def test_set_inbox_subcommand_json(tmp_path, monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["ok"] is True
     assert out["inbox_dir"] == str(tmp_path / "Inbox")
+
+
+def test_write_inbox_path_with_double_quote_round_trips(tmp_path):
+    # Legal on macOS/APFS; previously produced invalid TOML (unescaped ").
+    toml = tmp_path / "automation.toml"
+    inbox = tmp_path / 'weird"name'
+    res = appcli._write_inbox_config(str(inbox), toml)
+    assert res["ok"] is True
+    data = tomllib.loads(toml.read_text())
+    assert data["inbox_dir"] == str(inbox)
+
+
+def test_write_inbox_path_with_backslash_round_trips(tmp_path):
+    # Previously produced invalid TOML (unescaped backslash).
+    toml = tmp_path / "automation.toml"
+    inbox = tmp_path / "weird\\name"
+    res = appcli._write_inbox_config(str(inbox), toml)
+    assert res["ok"] is True
+    data = tomllib.loads(toml.read_text())
+    assert data["inbox_dir"] == str(inbox)
+
+
+def test_write_inbox_preserves_other_keys_with_new_renderer(tmp_path):
+    # Re-confirm the preserve-other-keys behavior still holds after the
+    # json.dumps-based string escaping change.
+    toml = tmp_path / "automation.toml"
+    toml.write_text('sweep_seconds = 300\ninbox_dir = "/old"\n')
+    appcli._write_inbox_config(str(tmp_path / "new"), toml)
+    data = tomllib.loads(toml.read_text())
+    assert data["inbox_dir"] == str(tmp_path / "new")
+    assert data["sweep_seconds"] == 300  # preserved
+
+
+def test_render_toml_bool_and_int_unaffected_by_string_escaping():
+    text = appcli._render_toml({"enabled": True, "disabled": False, "sweep_seconds": 300})
+    lines = text.strip().splitlines()
+    assert "enabled = true" in lines
+    assert "disabled = false" in lines
+    assert "sweep_seconds = 300" in lines
+    data = tomllib.loads(text)
+    assert data["enabled"] is True
+    assert data["disabled"] is False
+    assert data["sweep_seconds"] == 300
