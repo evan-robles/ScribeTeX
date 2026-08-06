@@ -18,7 +18,20 @@ BODY_BEGIN = "% --- begin transcribed body ---"
 BODY_END = "% --- end transcribed body ---"
 
 _SECTION_RE = re.compile(r"\\section\{(.*?)\}")
-_NOTE_LABEL_RE = re.compile(r"\\label\{note:(\d{4}-\d{2}-\d{2})\}")
+# Composite key: date, then optional :section-slug:subsection-slug. Legacy
+# date-only labels (no colons after the date) are matched too.
+_NOTE_LABEL_RE = re.compile(r"\\label\{note:(\d{4}-\d{2}-\d{2}(?::[a-z0-9-]*){0,2})\}")
+
+
+def note_slug(text: str) -> str:
+    """Lowercase, hyphenated, ASCII-safe reduction of a title for a note key."""
+    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower())
+    return s.strip("-")
+
+
+def note_key(date_iso: str, section_title: str, subsection_title: str) -> str:
+    """Composite duplicate-detection key: date + section slug + subsection slug."""
+    return f"{date_iso}:{note_slug(section_title)}:{note_slug(subsection_title)}"
 
 
 def _entries_region(main_tex: str) -> tuple[int, int]:
@@ -44,11 +57,12 @@ def existing_note_labels(main_tex: str) -> list[str]:
     return _NOTE_LABEL_RE.findall(main_tex)
 
 
-def subsection_block(title: str, body: str, date_iso: str) -> str:
-    """A single ``\\subsection`` with a hidden note-label and body markers."""
+def subsection_block(title: str, body: str, date_iso: str, section_title: str) -> str:
+    """A single ``\\subsection`` with a hidden composite note-label + body markers."""
+    key = note_key(date_iso, section_title, title)
     return (
         f"\\subsection{{{title}}}\n"
-        f"\\label{{note:{date_iso}}}\n"
+        f"\\label{{note:{key}}}\n"
         f"{BODY_BEGIN}\n"
         f"{body}\n"
         f"{BODY_END}\n"
