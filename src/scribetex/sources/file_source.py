@@ -14,14 +14,18 @@ class FileSource:
     covers GoodNotes and other iPad apps' standard PDF/image exports."""
 
     def fetch_pages(self, ref: str) -> list[Path]:
+        if not (ref or "").strip():
+            raise ValueError("no note path provided: pass ref=<path to PDF/image>")
         path = Path(ref).expanduser()
         if not path.exists():
-            raise FileNotFoundError(path)
+            raise FileNotFoundError(f"file not found: {path}")
         ext = path.suffix.lower()
         if ext in _IMAGE_EXTS:
             return [path]
         if ext != ".pdf":
-            raise ValueError(f"unsupported note file type: {ext}")
+            raise ValueError(
+                f"unsupported extension '{ext}'; supported: pdf, png, jpg, jpeg, heic"
+            )
         import fitz  # PyMuPDF
         out_dir = Path(tempfile.mkdtemp(prefix="scribetex_"))
         doc = fitz.open(str(path))
