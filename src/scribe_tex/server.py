@@ -59,9 +59,9 @@ STEP 3 — resolve_placement(course_hint=..., section_hint=..., date=...)
 STEP 4 — write_section(course=..., course_number=..., section_title=...,
                        subsection_title=..., latex_body=..., date=...,
                        on_duplicate="warn")
-  Only after the user confirms. Pass the course NAME as `course` (e.g. "Organic
-  Chemistry") and the course NUMBER as `course_number` (e.g. "CHEM 22100") — both
-  go on the title page/header when a new course is scaffolded. Scaffolds the
+  Only after the user confirms. Pass the course NAME as `course` (e.g.
+  "<Course Name>") and the course NUMBER as `course_number` (e.g. "DEPT 10100") —
+  both go on the title page/header when a new course is scaffolded. Scaffolds the
   course if new (full template: title page + TOC + preamble, plus main.bib and
   ExtFiles/ so it compiles standalone), then adds your \subsection under
   section_title — appending within it if it exists, or creating that \section at
@@ -225,7 +225,7 @@ def write_section(course: str, section_title: str, subsection_title: str,
     subsection under the given topic section. Call only AFTER the user confirms.
 
     Args:
-        course: the confirmed course NAME (e.g. "Organic Chemistry"); also the
+        course: the confirmed course NAME (e.g. "<Course Name>"); also the
             folder name.
         section_title: the top-level section to file under (appended within if it
             exists, else created at the end of the document).
@@ -233,7 +233,7 @@ def write_section(course: str, section_title: str, subsection_title: str,
         latex_body: your transcribed LaTeX — BODY ONLY (no preamble, no
             \\section/\\subsection/\\label line; the server adds those).
         date: the confirmed class date (becomes the hidden \\label{note:...}).
-        course_number: the course NUMBER (e.g. "CHEM 22100") for the title page
+        course_number: the course NUMBER (e.g. "DEPT 10100") for the title page
             and running header; used only when scaffolding a new course. If
             omitted, a digit-bearing token from the course name is used.
         on_duplicate: "warn" (default; refuse if a note with that date-label

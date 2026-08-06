@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Inventory the courses under the notes root.
+
+For each course document, prints its topic sections and how many notes
+(subsections carrying a note-label) it holds, as JSON.
+
+Usage:
+    python run.py
+
+Requires the ``scribe_tex`` package importable (the plugin sets PYTHONPATH).
+"""
+from __future__ import annotations
+
+import json
+import sys
+
+from scribe_tex.config import notes_root
+from scribe_tex.classify import course_slug
+from scribe_tex.discovery import known_courses
+from scribe_tex.placement import existing_sections, existing_note_labels
+
+
+def main() -> int:
+    root = notes_root()
+    courses = []
+    for name in known_courses(root):
+        main_tex = root / course_slug(name) / "main.tex"
+        try:
+            text = main_tex.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        courses.append({
+            "course": name,
+            "path": str(main_tex),
+            "sections": existing_sections(text),
+            "note_count": len(existing_note_labels(text)),
+        })
+
+    print(json.dumps({
+        "notes_root": str(root),
+        "course_count": len(courses),
+        "courses": courses,
+    }, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

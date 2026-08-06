@@ -33,6 +33,34 @@ pip install -e ".[dev]"
 Each note's subsection carries a hidden `\label{note:YYYY-MM-DD}` used only for
 duplicate detection.
 
+## Install as a Claude Code plugin (recommended)
+
+This repo is a Claude Code plugin marketplace. Anyone can add it and get the MCP
+server plus the skills, from within Claude Code:
+
+```
+/plugin marketplace add evan-robles/ScribeTeX
+/plugin install scribe-tex@scribe-tex
+```
+
+On first session the plugin's `SessionStart` hook installs the Python
+dependencies (`fastmcp`, `pymupdf`, `python-dateutil`) if they are missing, and
+the MCP server is launched via `python3 -m scribe_tex.server` with
+`PYTHONPATH=${CLAUDE_PLUGIN_ROOT}/src` — no manual `pip install` required.
+
+## Skills
+
+The plugin bundles four self-contained skills (each a `SKILL.md` + `scripts/`):
+
+- **process-note** — render a note export and file a transcription under a topic
+  section of a course document (the end-to-end workflow).
+- **new-course** — scaffold a new course document (title page + preamble +
+  sidecars) up front.
+- **list-courses** — inventory the courses, their topic sections, and note counts.
+- **compile-course** — build a course's `main.tex` to PDF via
+  `pdflatex → biber → pdflatex → pdflatex` (requires a local TeX install; this is
+  the only place scribe-tex compiles).
+
 ## Configuration
 
 - `SCRIBE_TEX_NOTES_ROOT` — parent folder holding one repo per course.

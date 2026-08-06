@@ -1,0 +1,23 @@
+{
+  "name": "scribe-tex",
+  "version": "0.1.0",
+  "description": "Turn handwritten iPad/GoodNotes note exports into typeset per-course LaTeX (MCP server + skills).",
+  "author": {
+    "name": "Evan S. Robles",
+    "url": "https://github.com/evan-robles"
+  },
+  "homepage": "https://github.com/evan-robles/ScribeTeX",
+  "repository": "https://github.com/evan-robles/ScribeTeX",
+  "license": "MIT",
+  "keywords": ["latex", "notes", "ipad", "goodnotes", "mcp", "transcription"],
+  "mcpServers": {
+    "scribe-tex": {
+      "command": "python3",
+      "args": ["-m", "scribe_tex.server"],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/src"
+      }
+    }
+  },
+  "hooks": "./hooks/hooks.json"
+}
