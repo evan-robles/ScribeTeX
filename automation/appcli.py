@@ -136,6 +136,52 @@ def _known_courses() -> list:
     return known_courses(notes_root())
 
 
+def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> dict:
+    from scribetex.classify import parse_date
+    from .prompt import build_refile_prompt, parse_result
+    from .envpath import augmented_env
+    src = Path(path).expanduser()
+    nr = _config.needs_review_dir(cfg)
+    if not src.exists() or src.parent.resolve() != nr.resolve():
+        return {"ok": False, "error": f"not a parked note: {src}"}
+    date_iso = parse_date(date)
+    if not date_iso:
+        return {"ok": False, "error": f"unusable date: {date!r}"}
+    if invoke_fn is None:
+        import subprocess
+        def invoke_fn(prompt_text, claude_bin):
+            proc = subprocess.run([claude_bin, "-p", prompt_text],
+                                  capture_output=True, text=True, timeout=1800,
+                                  env=augmented_env())
+            return proc.stdout or ""
+    stdout = invoke_fn(build_refile_prompt(str(src), course, section, subsection, date_iso),
+                       cfg["claude_bin"])
+    result = parse_result(stdout)
+    if result.get("status") != "filed":
+        return {"ok": False, "error": result.get("reason", "re-file did not complete")}
+    dest_dir = _config.done_dir(cfg) / date_iso
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), str(dest_dir / src.name))
+    for sfx in (".review.json", ".review.txt", ".error.txt"):
+        sc = nr / f"{src.name}{sfx}"
+        if sc.exists():
+            sc.unlink()
+    return {"ok": True, "filed": result}
+
+
+def _discard(cfg, path) -> dict:
+    src = Path(path).expanduser()
+    nr = _config.needs_review_dir(cfg)
+    if not src.exists() or src.parent.resolve() != nr.resolve():
+        return {"ok": False, "error": f"not a parked note: {src}"}
+    src.unlink()
+    for sfx in (".review.json", ".review.txt", ".error.txt"):
+        sc = nr / f"{src.name}{sfx}"
+        if sc.exists():
+            sc.unlink()
+    return {"ok": True, "discarded": src.name}
+
+
 def _emit(obj) -> int:
     print(json.dumps(obj))
     return 0
@@ -184,6 +230,10 @@ def main(argv=None) -> int:
     sub.add_parser("sweep")
     sub.add_parser("install")
     sub.add_parser("uninstall")
+    rp = sub.add_parser("refile")
+    for a in ("--path", "--course", "--section", "--subsection", "--date"):
+        rp.add_argument(a, required=True)
+    dp = sub.add_parser("discard"); dp.add_argument("--path", required=True)
     args = ap.parse_args(argv)
 
     try:
@@ -228,6 +278,13 @@ def _dispatch(args) -> int:
         with _suppress_stdout():
             _install.main(["--uninstall"])
         return _emit({"ok": True, "watcher_running": False})
+    if args.cmd == "refile":
+        cfg = _load()
+        return _emit(_refile(cfg, args.path, args.course, args.section,
+                             args.subsection, args.date))
+    if args.cmd == "discard":
+        cfg = _load()
+        return _emit(_discard(cfg, args.path))
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 

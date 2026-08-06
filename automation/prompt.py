@@ -58,6 +58,28 @@ When done, print EXACTLY ONE final line, machine-readable, one of:
 The {RESULT_PREFIX} line MUST be valid JSON after the prefix. Print nothing after it."""
 
 
+def build_refile_prompt(note_path, course, section, subsection, date) -> str:
+    return f"""You are ScribeTeX's re-file worker. The placement is ALREADY \
+decided by the user — do not second-guess it.
+
+Note file: {note_path}
+Course: {course}
+Section: {section}
+Subsection: {subsection}
+Class date: {date}
+
+Call prepare_note(source="file", ref="{note_path}"), transcribe every page to \
+LaTeX per the brief (reproduce charts/tables as TikZ/pgfplots/tabular; embed \
+freehand drawings via save_figure), then call write_section with course \
+"{course}", section "{section}", subsection "{subsection}", date "{date}". \
+Do NOT report ambiguous — the user has supplied all placement values.
+
+Print EXACTLY ONE final line:
+{RESULT_PREFIX} {{"status":"filed","course":"{course}","section":"{section}","subsection":"{subsection}","date":"{date}","target":"<path>","figures":<int>}}
+or on failure:
+{RESULT_PREFIX} {{"status":"error","reason":"<what failed>"}}"""
+
+
 def parse_result(stdout: str) -> dict:
     last = None
     for line in stdout.splitlines():
