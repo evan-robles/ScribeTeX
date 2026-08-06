@@ -40,40 +40,62 @@ final class AppModel: ObservableObject {
             return
         }
         Task.detached(priority: .userInitiated) {
+            // Compute everything off the main actor, then apply in a single hop.
+            // Only Sendable values (Status, [ReviewItem], String) cross the
+            // boundary — never a non-Sendable Error.
+            let fetched: Status?
+            let items: [ReviewItem]
+            let failure: String?
             do {
                 let s = try Bridge.status()
-                var items: [ReviewItem] = []
-                if s.needs_review_count > 0 {
-                    items = (try? Bridge.needsReview().items) ?? []
-                }
-                await MainActor.run {
-                    self.status = s
-                    self.reviewItems = items
-                    self.lastError = nil
-                }
+                fetched = s
+                items = s.needs_review_count > 0
+                    ? ((try? Bridge.needsReview().items) ?? [])
+                    : []
+                failure = nil
             } catch {
-                await MainActor.run {
-                    self.lastError = Self.describe(error)
-                }
+                fetched = nil
+                items = []
+                failure = Self.describe(error)
             }
+            await MainActor.run { self.apply(status: fetched, items: items, failure: failure) }
         }
+    }
+
+    /// Apply a refresh result on the main actor.
+    private func apply(status: Status?, items: [ReviewItem], failure: String?) {
+        if let failure {
+            lastError = failure
+            return
+        }
+        self.status = status
+        reviewItems = items
+        lastError = nil
     }
 
     /// Run a bridge action off the main thread, then refresh the UI.
     func perform(_ action: @escaping () throws -> Void) {
         busy = true
         Task.detached(priority: .userInitiated) {
-            var failure: String?
-            do { try action() } catch { failure = Self.describe(error) }
-            await MainActor.run {
-                self.busy = false
-                if let failure { self.lastError = failure }
-                self.refresh()
+            let failure: String?
+            do {
+                try action()
+                failure = nil
+            } catch {
+                failure = Self.describe(error)
             }
+            await MainActor.run { self.finish(failure: failure) }
         }
     }
 
-    static func describe(_ error: Error) -> String {
+    /// Apply an action's outcome on the main actor, then refresh.
+    private func finish(failure: String?) {
+        busy = false
+        if let failure { lastError = failure }
+        refresh()
+    }
+
+    nonisolated static func describe(_ error: Error) -> String {
         // BridgeError conforms to LocalizedError, so localizedDescription
         // carries the useful message (repo missing, nonzero exit + stderr,
         // or a bridge-reported ok==false error string).

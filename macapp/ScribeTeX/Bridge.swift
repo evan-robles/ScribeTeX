@@ -6,8 +6,78 @@ enum Bridge {
         get { UserDefaults.standard.string(forKey: "ScribeTeXRepoRoot") }
         set { UserDefaults.standard.set(newValue, forKey: "ScribeTeXRepoRoot") }
     }
+    /// The Python interpreter used to run the bridge.
+    ///
+    /// Honors an explicit `ScribeTeXPython` UserDefaults override if set;
+    /// otherwise auto-discovers a Python 3.11+ (needed for `tomllib`). Probes
+    /// common install locations and falls back to whatever `python3` is on the
+    /// login PATH. `/usr/bin/python3` is tried LAST because on many Macs it is
+    /// an older stub (e.g. Xcode's 3.9) that lacks `tomllib`.
     static var pythonBin: String {
-        UserDefaults.standard.string(forKey: "ScribeTeXPython") ?? "/usr/bin/python3"
+        if let override = UserDefaults.standard.string(forKey: "ScribeTeXPython"),
+           !override.isEmpty {
+            return override
+        }
+        return discoverPython() ?? "/usr/bin/python3"
+    }
+
+    /// The candidate interpreters, in preference order, ending with the PATH
+    /// `python3` and the system stub.
+    private static var pythonCandidates: [String] {
+        [
+            "/opt/homebrew/bin/python3",   // Apple-silicon Homebrew
+            "/usr/local/bin/python3",      // Intel Homebrew
+            "/opt/homebrew/Caskroom/miniforge/base/bin/python3",  // miniforge (arm)
+            "/usr/bin/python3",            // system stub (often too old) — last
+        ]
+    }
+
+    /// Return the first candidate that is Python >= 3.11, or a PATH-resolved
+    /// `python3` if it is new enough; nil if none qualifies.
+    private static func discoverPython() -> String? {
+        for path in pythonCandidates where FileManager.default.isExecutableFile(atPath: path) {
+            if isSupported(path) { return path }
+        }
+        // Fall back to whatever `python3` resolves to on the login PATH.
+        if let viaPath = resolveOnPath("python3"), isSupported(viaPath) {
+            return viaPath
+        }
+        return nil
+    }
+
+    /// Resolve a command on the user's login PATH via `/usr/bin/env`.
+    private static func resolveOnPath(_ cmd: String) -> String? {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        p.arguments = ["which", cmd]
+        let out = Pipe(); p.standardOutput = out
+        p.standardError = Pipe()
+        do {
+            try p.run()
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            guard p.terminationStatus == 0 else { return nil }
+            let line = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (line?.isEmpty == false) ? line : nil
+        } catch { return nil }
+    }
+
+    /// True if the interpreter at `path` reports version >= 3.11.
+    private static func isSupported(_ path: String) -> Bool {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = ["-c", "import sys; print(sys.version_info[:2] >= (3, 11))"]
+        let out = Pipe(); p.standardOutput = out
+        p.standardError = Pipe()
+        do {
+            try p.run()
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            let s = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return p.terminationStatus == 0 && s == "True"
+        } catch { return false }
     }
 
     static func run(_ args: [String]) throws -> Data {

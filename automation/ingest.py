@@ -19,9 +19,13 @@ MAX_ERROR_ATTEMPTS = 3
 def invoke_claude(note_path, claude_bin, run_fn=None, timeout=1800) -> str:
     run_fn = run_fn or subprocess.run
     try:
+        # Augment PATH so a GUI-launched app (minimal PATH) can still find
+        # `claude` in ~/.local/bin / Homebrew when invoking it.
+        from .envpath import augmented_env
         proc = run_fn(
             [claude_bin, "-p", build_prompt(note_path)],
             capture_output=True, text=True, timeout=timeout,
+            env=augmented_env(),
         )
         out = proc.stdout or ""
         if proc.returncode != 0 and "SCRIBETEX_RESULT:" not in out:

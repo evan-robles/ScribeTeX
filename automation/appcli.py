@@ -15,6 +15,7 @@ from pathlib import Path
 from . import config as _config
 from . import ingest as _ingest
 from . import install as _install
+from .envpath import augmented_path as _augmented_path
 
 
 def _config_toml_path() -> Path:
@@ -33,7 +34,9 @@ def _count_files(d: Path) -> int:
 
 def _status_dict(cfg, *, plist_paths_fn=None, which_fn=None, now_fn=None) -> dict:
     plist_paths_fn = plist_paths_fn or _install.plist_paths
-    which_fn = which_fn or shutil.which
+    # Default detection augments PATH with ~/.local/bin, Homebrew, etc., so a
+    # GUI-launched app (minimal PATH) still finds a user-installed `claude`.
+    which_fn = which_fn or (lambda name: shutil.which(name, path=_augmented_path()))
     now_fn = now_fn or _dt.datetime.now
 
     paths = plist_paths_fn(cfg)
