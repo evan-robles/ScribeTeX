@@ -33,6 +33,8 @@ PREAMBLE_BODY = r"""\documentclass[11pt]{{article}}
     decorations.markings,
     decorations.pathmorphing
 }}
+\usepackage{{pgfplots}}
+\pgfplotsset{{compat=1.18}}
 
 \usepackage{{float}}
 \usepackage{{braket}}
@@ -153,7 +155,7 @@ baseline={{(0,-0.14)}}
 
 ALLOWED_PACKAGES = [
     "geometry", "fontenc", "amsmath", "amssymb", "amsthm", "mathtools",
-    "empheq", "bm", "physics", "mhchem", "siunitx", "graphicx", "tikz",
+    "empheq", "bm", "physics", "mhchem", "siunitx", "graphicx", "tikz", "pgfplots",
     "float", "braket", "subcaption", "booktabs", "multirow", "csquotes",
     "enumitem", "marginnote", "scrextend", "footmisc", "fancyhdr", "biblatex",
     "xr", "subfiles", "hyperref",
