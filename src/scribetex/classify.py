@@ -62,6 +62,9 @@ def match_course(hint: str, known: list[str]) -> tuple[str | None, str]:
     hint_tokens = _tokens(hint)
     if not hint_tokens:
         return None, "none"
+    for course in known:
+        if course.strip().lower() == hint.strip().lower():
+            return course, "high"
     scored = []
     for course in known:
         overlap = hint_tokens & _tokens(course)

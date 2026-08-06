@@ -10,7 +10,7 @@ from .transcription_brief import build_brief
 from .sources.base import get_source
 from .scaffold import scaffold_course
 from .writer import insert_note, DuplicateNoteError, MalformedDocumentError
-from .placement import existing_sections, existing_note_labels
+from .placement import existing_sections, existing_note_labels, note_key
 
 SERVER_INSTRUCTIONS = r"""
 ScribeTeX turns a handwritten note export (PDF or image, e.g. from GoodNotes or
@@ -47,10 +47,13 @@ STEP 2 — TRANSCRIBE (you, from the page images)
     date. If the course, section, or date is missing/ambiguous, ASK THE USER —
     do not guess.
 
-STEP 3 — resolve_placement(course_hint=..., section_hint=..., date=...)
+STEP 3 — resolve_placement(course_hint=..., section_hint=..., subsection_hint=...,
+                           date=...)
   Returns the resolved course, course_status ("existing"/"new"), the target
   section and section_status ("existing"/"new"), target_path, date_iso,
-  duplicate (a note with that date-label already exists), match_confidence, and
+  duplicate (a note with that date+section+subsection label already exists —
+  this keys on the SAME composite date+section+subsection key write_section
+  uses, so it predicts write_section's outcome exactly), match_confidence, and
   existing_sections (to help you reuse a section rather than duplicate one). SHOW
   the user: course, chosen section (new vs existing), date, target file, and any
   duplicate — and get confirmation BEFORE writing. If confidence is "low", the
@@ -101,7 +104,8 @@ def _prepare_note(source: str = "file", ref: str = "") -> dict:
     }
 
 
-def _resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
+def _resolve_placement(course_hint: str, section_hint: str,
+                       subsection_hint: str, date: str) -> dict:
     root = notes_root()
     known = known_courses(root)
     date_iso = parse_date(date)
@@ -126,8 +130,9 @@ def _resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
         text = target.read_text(encoding="utf-8")
         sections = existing_sections(text)
         section_status = "existing" if section_hint in sections else "new"
-        if date_iso and date_iso in existing_note_labels(text):
-            duplicate = True
+        if date_iso:
+            key = note_key(date_iso, section_hint, subsection_hint)
+            duplicate = key in existing_note_labels(text)
 
     if not date_iso:
         confidence = "low"
@@ -136,6 +141,7 @@ def _resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
         "course": course,
         "course_status": status,
         "section_title": section_hint,
+        "subsection_title": subsection_hint,
         "section_status": section_status,
         "existing_sections": sections,
         "target_path": str(target),
@@ -200,22 +206,29 @@ def prepare_note(source: str = "file", ref: str = "") -> dict:
 
 
 @mcp.tool
-def resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
+def resolve_placement(course_hint: str, section_hint: str,
+                      subsection_hint: str, date: str) -> dict:
     """Resolve which course document and which topic section a note goes under,
     so its placement can be confirmed with the user before writing.
 
     Args:
         course_hint: the course name/number you inferred.
         section_hint: the top-level SECTION title this note belongs under.
-        date: the class date (any common format; normalized to ISO; used as the
-            hidden duplicate-detection label).
+        subsection_hint: the concise SUBSECTION title for THIS note; used
+            together with section_hint and date to predict duplicates exactly
+            as write_section will (the same composite date+section+subsection
+            key).
+        date: the class date (any common format; normalized to ISO; used with
+            section_hint and subsection_hint as the hidden duplicate-detection
+            label).
     Returns: course, course_status ("existing"/"new"), section_title,
-    section_status ("existing"/"new"), existing_sections (list, to help you reuse
-    one), target_path, date_iso, date_display, duplicate (bool),
-    match_confidence. Show this to the user and confirm before write_section. If
-    match_confidence is "low", the course/section is "new", or date_iso is null,
-    clear it up with the user first — do not assume."""
-    return _resolve_placement(course_hint, section_hint, date)
+    subsection_title, section_status ("existing"/"new"), existing_sections
+    (list, to help you reuse one), target_path, date_iso, date_display,
+    duplicate (bool), match_confidence. Show this to the user and confirm
+    before write_section. If match_confidence is "low", the course/section is
+    "new", or date_iso is null, clear it up with the user first — do not
+    assume."""
+    return _resolve_placement(course_hint, section_hint, subsection_hint, date)
 
 
 @mcp.tool
