@@ -1,6 +1,6 @@
 [project]
 name = "scribetex"
-version = "1.0.0"
+version = "1.1.0"
 description = "Convert handwritten note exports into per-course dated LaTeX documents."
 requires-python = ">=3.11"
 dependencies = [
