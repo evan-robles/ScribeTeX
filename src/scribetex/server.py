@@ -183,8 +183,9 @@ def _write_section(course: str, section_title: str, subsection_title: str,
 
 @mcp.tool
 def prepare_note(source: str = "file", ref: str = "") -> dict:
-    """STEP 1. Render a handwritten note export to page images so you can
-    transcribe it, and return the transcription brief + placement context.
+    """Render a handwritten note export to page images and return the
+    transcription brief plus placement context, so the calling agent can read
+    and transcribe it.
 
     Args:
         source: "file" for a local PDF/image path; "goodnotes" is an alias for
@@ -200,8 +201,8 @@ def prepare_note(source: str = "file", ref: str = "") -> dict:
 
 @mcp.tool
 def resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
-    """STEP 3. Resolve which course document and which topic section a note goes
-    under, so you can confirm placement with the user BEFORE writing.
+    """Resolve which course document and which topic section a note goes under,
+    so its placement can be confirmed with the user before writing.
 
     Args:
         course_hint: the course name/number you inferred.
@@ -221,8 +222,8 @@ def resolve_placement(course_hint: str, section_hint: str, date: str) -> dict:
 def write_section(course: str, section_title: str, subsection_title: str,
                   latex_body: str, date: str, course_number: str = "",
                   on_duplicate: str = "warn") -> dict:
-    """STEP 4. Scaffold the course if new and add your transcribed note as a
-    subsection under the given topic section. Call only AFTER the user confirms.
+    """Scaffold the course if new and add a transcribed note as a subsection
+    under the given topic section. Call only after the user confirms placement.
 
     Args:
         course: the confirmed course NAME (e.g. "<Course Name>"); also the
