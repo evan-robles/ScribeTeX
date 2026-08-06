@@ -16,7 +16,7 @@ this to see what's there before processing a new note, or to check placement.
 Run the inventory script:
 
 ```bash
-python skills/list-courses/scripts/run.py
+python scripts/run.py
 ```
 
 It prints JSON: the `notes_root`, a `course_count`, and a `courses` array where
@@ -28,14 +28,14 @@ with `SCRIBETEX_NOTES_ROOT`).
 ## Examples
 
 ```bash
-python skills/list-courses/scripts/run.py
+python scripts/run.py
 ```
 Typical output shows each course with its topic sections (e.g.
 `["Characterization Techniques", "Reaction Mechanisms"]`) and a note count.
 
 ## Constraints
-- **Environment**: requires the `scribetex` package importable (plugin sets
-  PYTHONPATH; the SessionStart hook installs deps).
+- **Environment**: self-locating (prepends `../../../src` to `sys.path`); the
+  SessionStart hook installs the `scribetex` package's deps.
 - **Read-only**: this skill never modifies any document.
 
 ---

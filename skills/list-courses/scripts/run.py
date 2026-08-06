@@ -7,12 +7,17 @@ For each course document, prints its topic sections and how many notes
 Usage:
     python run.py
 
-Requires the ``scribetex`` package importable (the plugin sets PYTHONPATH).
+Self-locating: prepends ../../../src to sys.path, so no external PYTHONPATH is required.
 """
 from __future__ import annotations
 
 import json
+import pathlib
 import sys
+
+_SRC = pathlib.Path(__file__).resolve().parents[3] / "src"
+if _SRC.is_dir() and str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from scribetex.config import notes_root
 from scribetex.classify import course_slug

@@ -17,13 +17,13 @@ write-only — so compilation is always an explicit, opt-in step.
 Compile by course name (resolved under the notes root):
 
 ```bash
-python skills/compile-course/scripts/run.py --course "<Course Name>"
+python scripts/run.py --course "<Course Name>"
 ```
 
 Or point directly at a `main.tex`:
 
 ```bash
-python skills/compile-course/scripts/run.py --path ~/Desktop/College/Notes/Organic-Chemistry/main.tex
+python scripts/run.py --path ~/Desktop/College/Notes/Organic-Chemistry/main.tex
 ```
 
 The script prints JSON: on success, `compiled: true` and the `pdf` path; on
@@ -33,14 +33,15 @@ failure, the failed step and the last ~25 lines of the log. If `pdflatex` or
 ## Examples
 
 ```bash
-python skills/compile-course/scripts/run.py --course "<Course Name>"
+python scripts/run.py --course "<Course Name>"
 ```
 
 ## Constraints
 - **Environment**: requires a local TeX distribution providing `pdflatex` and
   `biber` (MacTeX or TeX Live). The skill degrades gracefully with a clear
   message if either is missing.
-- **Requires** the `scribetex` package importable (plugin sets PYTHONPATH).
+- **Requires** the `scribetex` package's deps; the script self-locates by
+  prepending `../../../src` to `sys.path`.
 - **Overwrites** the course's `main.pdf` and TeX aux files in place.
 
 ## References

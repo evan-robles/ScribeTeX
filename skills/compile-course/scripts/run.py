@@ -10,17 +10,22 @@ Usage:
     python run.py --path /abs/path/to/course/main.tex
 
 Requires a local TeX toolchain (pdflatex + biber, e.g. MacTeX / TeX Live). Fails
-gracefully with a clear message if absent. Requires the ``scribetex`` package
-importable (the plugin sets PYTHONPATH).
+gracefully with a clear message if absent. Self-locating: prepends
+../../../src to sys.path, so no external PYTHONPATH is required.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import pathlib
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+_SRC = pathlib.Path(__file__).resolve().parents[3] / "src"
+if _SRC.is_dir() and str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from scribetex.config import notes_root
 from scribetex.classify import course_slug

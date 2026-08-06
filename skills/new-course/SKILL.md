@@ -19,7 +19,7 @@ use, so this skill is optional.
 Run the scaffold script with the course name and number:
 
 ```bash
-python skills/new-course/scripts/run.py --name "<Course Name>" --number "DEPT 10100"
+python scripts/run.py --name "<Course Name>" --number "DEPT 10100"
 ```
 
 Optional flags override the defaults `--author "Evan S. Robles"` and
@@ -34,12 +34,12 @@ root is `~/Desktop/College/Notes` by default (override with the
 
 Scaffold a course with a custom author:
 ```bash
-python skills/new-course/scripts/run.py --name "<Course Name>" --number "DEPT 20200" --author "Evan S. Robles"
+python scripts/run.py --name "<Course Name>" --number "DEPT 20200" --author "Evan S. Robles"
 ```
 
 ## Constraints
-- **Environment**: requires the `scribetex` package importable (plugin sets
-  PYTHONPATH; the SessionStart hook installs deps).
+- **Environment**: self-locating (prepends `../../../src` to `sys.path`); the
+  SessionStart hook installs the `scribetex` package's deps.
 - **No overwrite**: refuses if `main.tex` already exists for that course.
 - **Write-only**: does not compile the document; use `compile-course` for a PDF.
 

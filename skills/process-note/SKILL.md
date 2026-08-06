@@ -18,7 +18,7 @@ images; placement and file writing are deterministic.
 1. **Prepare the note** — render its pages and get the transcription brief:
 
    ```bash
-   python skills/process-note/scripts/run.py <path-to-note.pdf-or-image> --source file
+   python scripts/run.py <path-to-note.pdf-or-image> --source file
    ```
 
    Use `--source goodnotes` for a GoodNotes export (same handling; documents
@@ -48,13 +48,13 @@ images; placement and file writing are deterministic.
 
 Prepare a GoodNotes chemistry note for transcription:
 ```bash
-python skills/process-note/scripts/run.py ~/Downloads/chem-nmr.pdf --source goodnotes
+python scripts/run.py ~/Downloads/chem-nmr.pdf --source goodnotes
 ```
 
 ## Constraints
-- **Environment**: requires the `scribetex` package importable and its deps
-  (`fastmcp`, `pymupdf`, `python-dateutil`); the plugin's SessionStart hook
-  installs them.
+- **Environment**: self-locating (prepends `../../../src` to `sys.path`); requires
+  the `scribetex` package's deps (`fastmcp`, `pymupdf`, `python-dateutil`) — the
+  plugin's SessionStart hook installs them.
 - **Agent-transcribed**: this skill never runs a vision model itself; you do the
   transcription from the page images.
 - **Write-only**: this skill does not compile LaTeX. Use the `compile-course`
