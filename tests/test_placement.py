@@ -61,3 +61,14 @@ def test_duplicate_detected():
     doc = _doc_with(["2025-10-03"])
     p = plan_insertion(doc, "2025-10-03")
     assert p["duplicate"] is True
+
+
+def test_insert_is_order_independent():
+    # Build a document whose blocks are NOT in ascending document order.
+    from scribe_tex.placement import section_block, ENTRIES_START, ENTRIES_END
+    blocks = "\n".join(section_block(d, d, f"body {d}")
+                       for d in ["2025-10-10", "2025-09-01", "2025-09-28"])
+    doc = f"\\begin{{document}}\n{ENTRIES_START}\n{blocks}\n{ENTRIES_END}\n\\end{{document}}\n"
+    p = plan_insertion(doc, "2025-10-03")
+    assert p["duplicate"] is False
+    assert p["after_date"] == "2025-09-28"  # latest date strictly earlier than 10-03, by value

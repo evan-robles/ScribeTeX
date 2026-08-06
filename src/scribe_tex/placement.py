@@ -36,7 +36,7 @@ def plan_insertion(main_tex: str, date_iso: str) -> dict:
         return {"duplicate": True, "after_date": None, "insert_index": -1}
 
     earlier = [d for d in dates if d < date_iso]
-    after_date = earlier[-1] if earlier else None
+    after_date = max(earlier) if earlier else None
 
     if after_date is None:
         # Insert immediately after the ENTRIES_START marker line.
