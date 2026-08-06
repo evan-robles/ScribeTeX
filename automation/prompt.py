@@ -47,9 +47,13 @@ If you CANNOT confidently determine the course, section, or date (ambiguous or \
 missing), DO NOT guess and DO NOT write anything. Instead stop and report an \
 ambiguous result.
 
+If you must report ambiguous, still include your BEST GUESS for \
+course/section/subsection/date (use null for any you truly cannot infer) so \
+the user can confirm quickly.
+
 When done, print EXACTLY ONE final line, machine-readable, one of:
 {RESULT_PREFIX} {{"status":"filed","course":"...","section":"...","subsection":"...","date":"YYYY-MM-DD","target":"<path to main.tex>","figures":<int>}}
-{RESULT_PREFIX} {{"status":"ambiguous","reason":"<what was unclear>"}}
+{RESULT_PREFIX} {{"status":"ambiguous","reason":"<what was unclear>","course":<string-or-null>,"section":<string-or-null>,"subsection":<string-or-null>,"date":<string-or-null>}}
 {RESULT_PREFIX} {{"status":"error","reason":"<what failed>"}}
 The {RESULT_PREFIX} line MUST be valid JSON after the prefix. Print nothing after it."""
 

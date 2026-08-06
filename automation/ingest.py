@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import datetime as _dt
+import json
 import shutil
 import subprocess
 import sys
@@ -49,6 +50,22 @@ def notify(title, message, run_fn=None) -> None:
         pass
 
 
+def _write_review_sidecar(nr_dir, note_name, reason, kind, result) -> Path:
+    sidecar = Path(nr_dir) / f"{note_name}.review.json"
+    payload = {
+        "reason": reason,
+        "kind": kind,
+        "guess": {
+            "course": result.get("course"),
+            "section": result.get("section"),
+            "subsection": result.get("subsection"),
+            "date": result.get("date"),
+        },
+    }
+    sidecar.write_text(json.dumps(payload, indent=2))
+    return sidecar
+
+
 def route_file(note_path, result, cfg, now_fn=None) -> str:
     now_fn = now_fn or _dt.datetime.now
     note = Path(note_path)
@@ -63,9 +80,8 @@ def route_file(note_path, result, cfg, now_fn=None) -> str:
         nr = _config.needs_review_dir(cfg)
         nr.mkdir(parents=True, exist_ok=True)
         shutil.move(str(note), str(nr / note.name))
-        (nr / f"{note.name}.review.txt").write_text(
-            f"Needs review: {result.get('reason', 'unspecified')}\n"
-        )
+        _write_review_sidecar(nr, note.name,
+                              result.get("reason", "unspecified"), "ambiguous", result)
         return "ambiguous"
     return "error"  # leave in place
 
@@ -76,9 +92,8 @@ def give_up_file(note_path, result, cfg) -> None:
     nr = _config.needs_review_dir(cfg)
     nr.mkdir(parents=True, exist_ok=True)
     shutil.move(str(note), str(nr / note.name))
-    (nr / f"{note.name}.error.txt").write_text(
-        f"Gave up after repeated errors: {result.get('reason', 'unspecified')}\n"
-    )
+    _write_review_sidecar(nr, note.name,
+                          result.get("reason", "unspecified"), "error", result)
 
 
 def _candidates(cfg):

@@ -45,8 +45,11 @@ def test_ambiguous_moves_to_needsreview_with_sidecar(tmp_path):
     assert not note.exists()
     nr = tmp_path / "NeedsReview"
     assert (nr / "amb.pdf").exists()
-    sidecar = nr / "amb.pdf.review.txt"
-    assert sidecar.exists() and "course unclear" in sidecar.read_text()
+    sidecar = nr / "amb.pdf.review.json"
+    assert sidecar.exists()
+    data = json.loads(sidecar.read_text())
+    assert data["kind"] == "ambiguous"
+    assert data["reason"] == "course unclear"
 
 
 def test_error_leaves_in_place(tmp_path):
@@ -112,8 +115,11 @@ def test_error_hits_cap_dead_letters_and_marks_seen(tmp_path):
     assert not note.exists()
     nr = tmp_path / "NeedsReview"
     assert (nr / "err.pdf").exists()
-    sidecar = nr / "err.pdf.error.txt"
-    assert sidecar.exists() and "boom" in sidecar.read_text()
+    sidecar = nr / "err.pdf.review.json"
+    assert sidecar.exists()
+    data = json.loads(sidecar.read_text())
+    assert data["kind"] == "error"
+    assert data["reason"] == "boom"
     assert out[-1]["outcome"] == "gave_up"
 
     # File identity changed on move (new mtime/size context), so instead of
