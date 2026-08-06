@@ -93,18 +93,53 @@ def _emit(obj) -> int:
     return 0
 
 
+def _render_toml(data: dict) -> str:
+    lines = []
+    for k, v in data.items():
+        if isinstance(v, str):
+            lines.append(f'{k} = "{v}"')
+        elif isinstance(v, bool):
+            lines.append(f"{k} = {'true' if v else 'false'}")
+        else:
+            lines.append(f"{k} = {v}")
+    return "\n".join(lines) + "\n"
+
+
+def _write_inbox_config(inbox_path, toml_path) -> dict:
+    import tomllib
+    toml_path = Path(toml_path)
+    toml_path.parent.mkdir(parents=True, exist_ok=True)
+    data = {}
+    if toml_path.exists():
+        try:
+            data = tomllib.loads(toml_path.read_text())
+        except Exception:
+            data = {}
+    inbox = str(Path(inbox_path).expanduser())
+    data["inbox_dir"] = inbox
+    toml_path.write_text(_render_toml(data))
+    for sub in ("Done", "NeedsReview", ".scribetex"):
+        (Path(inbox) / sub).mkdir(parents=True, exist_ok=True)
+    return {"ok": True, "inbox_dir": inbox}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="ScribeTeX app JSON bridge.")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("needs-review")
+    sp = sub.add_parser("set-inbox")
+    sp.add_argument("--path", required=True)
     args = ap.parse_args(argv)
 
-    cfg = _load()
     if args.cmd == "status":
+        cfg = _load()
         return _emit(_status_dict(cfg))
     if args.cmd == "needs-review":
+        cfg = _load()
         return _emit({"ok": True, "items": _needs_review_items(cfg)})
+    if args.cmd == "set-inbox":
+        return _emit(_write_inbox_config(args.path, _config_toml_path()))
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 
