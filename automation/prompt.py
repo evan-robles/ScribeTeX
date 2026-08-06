@@ -1,0 +1,51 @@
+"""The headless-Claude instruction + parsing of its machine-readable result."""
+from __future__ import annotations
+import json
+
+RESULT_PREFIX = "SCRIBETEX_RESULT:"
+
+
+def build_prompt(note_path) -> str:
+    return f"""You are ScribeTeX's unattended ingest worker. Process EXACTLY ONE \
+handwritten note file into typeset LaTeX using the ScribeTeX MCP tools. Do not \
+ask the user anything; there is no human available.
+
+Note file: {note_path}
+
+Steps:
+1. Call prepare_note(source="file", ref="{note_path}").
+2. Read EVERY returned page image and transcribe it to LaTeX per the returned \
+brief (body only). Reproduce charts/tables/graphs as TikZ/pgfplots/tabular; embed \
+freehand drawings by calling save_figure with a fractional bbox; prose only as a \
+last resort.
+3. Decide the course, the top-level section, a concise subsection title, and the \
+date from the note's content.
+4. Call resolve_placement(course_hint, section_hint, subsection_hint, date).
+5. Call write_section(...) to file the transcription.
+
+If you CANNOT confidently determine the course, section, or date (ambiguous or \
+missing), DO NOT guess and DO NOT write anything. Instead stop and report an \
+ambiguous result.
+
+When done, print EXACTLY ONE final line, machine-readable, one of:
+{RESULT_PREFIX} {{"status":"filed","course":"...","section":"...","subsection":"...","date":"YYYY-MM-DD","target":"<path to main.tex>","figures":<int>}}
+{RESULT_PREFIX} {{"status":"ambiguous","reason":"<what was unclear>"}}
+{RESULT_PREFIX} {{"status":"error","reason":"<what failed>"}}
+The {RESULT_PREFIX} line MUST be valid JSON after the prefix. Print nothing after it."""
+
+
+def parse_result(stdout: str) -> dict:
+    last = None
+    for line in stdout.splitlines():
+        s = line.strip()
+        if s.startswith(RESULT_PREFIX):
+            last = s[len(RESULT_PREFIX):].strip()
+    if last is None:
+        return {"status": "error", "reason": "no SCRIBETEX_RESULT line in output"}
+    try:
+        data = json.loads(last)
+    except Exception as e:
+        return {"status": "error", "reason": f"malformed result json: {e}"}
+    if "status" not in data:
+        return {"status": "error", "reason": "result missing status"}
+    return data
