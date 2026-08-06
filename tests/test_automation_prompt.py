@@ -1,3 +1,4 @@
+import pytest
 from automation import prompt
 
 
@@ -10,6 +11,33 @@ def test_build_prompt_mentions_path_and_contract():
     # must instruct not to guess when ambiguous
     low = p.lower()
     assert "ambiguous" in low and ("do not" in low or "don't" in low)
+
+
+def test_build_prompt_safe_paths():
+    """Normal paths with spaces, parens, hyphens should succeed."""
+    safe_paths = [
+        "/inbox/Bio 5.pdf",
+        "/notes/Chem (Advanced).pdf",
+        "/path/with-dashes-here.pdf",
+    ]
+    for path in safe_paths:
+        p = prompt.build_prompt(path)
+        assert path in p
+
+
+@pytest.mark.parametrize("unsafe_char,example", [
+    ('"', '/notes/file"name.pdf'),
+    ("'", "/notes/file'name.pdf"),
+    ("`", "/notes/file`name.pdf"),
+    ("<", "/notes/file<name.pdf"),
+    (">", "/notes/file>name.pdf"),
+    ("\n", "/notes/file\nname.pdf"),
+    ("\r", "/notes/file\rname.pdf"),
+])
+def test_build_prompt_rejects_unsafe_chars(unsafe_char, example):
+    """Dangerous characters should raise UnsafeNotePathError."""
+    with pytest.raises(prompt.UnsafeNotePathError):
+        prompt.build_prompt(example)
 
 
 def test_parse_filed():
@@ -38,3 +66,11 @@ def test_parse_malformed_json_is_error():
     out = "SCRIBETEX_RESULT: {not json}"
     r = prompt.parse_result(out)
     assert r["status"] == "error"
+
+
+def test_parse_unknown_status_is_error():
+    """Unknown status values should be rejected."""
+    out = 'SCRIBETEX_RESULT: {"status":"pwned","data":"injected"}'
+    r = prompt.parse_result(out)
+    assert r["status"] == "error"
+    assert "unknown result status" in r["reason"]
