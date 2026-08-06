@@ -24,11 +24,16 @@ pip install -e ".[dev]"
 - `prepare_note(source="file", ref)` — render a note export (PDF/PNG/JPG/HEIC)
   to page images and return a transcription brief + known courses.
   `source="goodnotes"` is an alias for GoodNotes exports.
-- `resolve_placement(course_hint, section_hint, date)` — map to a course
-  document and topic section, reporting new-vs-existing and any duplicate.
+- `resolve_placement(course_hint, section_hint, subsection_hint, date)` — map to
+  a course document and topic section, reporting new-vs-existing and any
+  duplicate.
 - `write_section(course, section_title, subsection_title, latex_body, date,
   course_number="", on_duplicate="warn")` — scaffold the course if new and add
   the note as a subsection under the given topic section.
+- `save_figure(course, page_image, bbox, name)` — crop a region of a rendered
+  note page into the course's `ExtFiles/` so a freehand drawing can be embedded
+  with `\includegraphics`. Use only when a figure can't be faithfully
+  reproduced as TikZ/pgfplots/tabular.
 
 Each note's subsection carries a hidden `\label{note:YYYY-MM-DD}` used only for
 duplicate detection.
@@ -60,6 +65,18 @@ The plugin bundles four self-contained skills (each a `SKILL.md` + `scripts/`):
 - **compile-course** — build a course's `main.tex` to PDF via
   `pdflatex → biber → pdflatex → pdflatex` (requires a local TeX install; this is
   the only place ScribeTeX compiles).
+
+## Figures
+
+When a note contains a chart, table, or graph, reproduce it in LaTeX first —
+TikZ/pgfplots for plots and diagrams, `tabular` for tables — so it stays
+editable and renders crisply. Only fall back to embedding a cropped image of a
+freehand drawing (something that genuinely can't be redrawn in LaTeX) via
+`save_figure(course, page_image, bbox, name)`, where `bbox` is
+`[x0, y0, x1, y1]` as fractions in `[0,1]` of the page (origin top-left); this
+crops the region into the course's `ExtFiles/` and returns a ready
+`\includegraphics` snippet. Prose description is the last resort, when neither
+LaTeX reproduction nor a figure crop is practical.
 
 ## Configuration
 
