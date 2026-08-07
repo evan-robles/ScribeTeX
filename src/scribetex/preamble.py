@@ -151,6 +151,12 @@ baseline={{(0,-0.14)}}
 
 \newcommand{{\asym}}[2]{{\braket{{#1 || #2}}}}
 \newcommand{{\chemint}}[2]{{(#1\,|\,#2)}}
+
+% Flags a transcription the agent was NOT confident about (illegible / guessed).
+% Renders dark-orange + underlined so it is easy to spot-check against the
+% original, and still visible as underlined in a black-and-white print.
+\colorlet{{uncertaincolor}}{{orange!75!black}}
+\newcommand{{\uncertain}}[1]{{\underline{{\textcolor{{uncertaincolor}}{{#1}}}}}}
 """
 
 ALLOWED_PACKAGES = [
@@ -163,7 +169,7 @@ ALLOWED_PACKAGES = [
 
 ALLOWED_MACROS = [
     r"\kB", r"\lB", r"\Tg", r"\Tm", r"\Tc", r"\Mn", r"\Mw", r"\R", r"\pKa",
-    r"\pH", r"\ee", r"\Dstroke", r"\asym", r"\chemint",
+    r"\pH", r"\ee", r"\Dstroke", r"\asym", r"\chemint", r"\uncertain",
 ]
 
 

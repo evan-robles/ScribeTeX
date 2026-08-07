@@ -9,3 +9,10 @@ dist/
 # macOS
 .DS_Store
 **/.DS_Store
+
+# stray chem/assay run artifacts
+*.molden
+*.cube
+*_orbitals_*.json
+build_*.out
+orbitals_*.out

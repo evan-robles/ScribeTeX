@@ -220,6 +220,22 @@ enum Bridge {
     static func openPDF(course: String) throws -> ActionResult {
         try action(["open-pdf", "--course", course], timeout: 30)
     }
+
+    /// List a course's filed notes (key/date/section titles) for the corrector.
+    static func listNotes(course: String) throws -> [NoteRef] {
+        try JSONDecoder().decode(NotesList.self,
+                                 from: run(["list-notes", "--course", course])).notes
+    }
+
+    /// Apply a plain-language fix to ONE filed note (spends Claude tokens; slow).
+    @discardableResult
+    static func correct(course: String, noteKey: String, instruction: String,
+                        reread: Bool) throws -> ActionResult {
+        var args = ["correct", "--course", course, "--note-key", noteKey,
+                    "--instruction", instruction]
+        if reread { args.append("--reread") }
+        return try action(args, timeout: slowTimeout)
+    }
 }
 
 enum BridgeError: LocalizedError {

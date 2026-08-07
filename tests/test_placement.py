@@ -45,3 +45,16 @@ def test_existing_note_labels_in_order():
 
 def test_append_index_is_entries_end():
     assert EMPTY[append_index(EMPTY):].startswith(ENTRIES_END)
+
+
+def test_list_notes_returns_key_date_sections():
+    from scribetex.placement import list_notes
+    doc = _doc_with([
+        ("bio.pdf", "2026-08-06", "\\section{Receptors}\nx\n\\section{Muscles}\ny"),
+        ("geo.pdf", "2026-08-07", "\\section{Area}\nz"),
+    ])
+    notes = list_notes(doc)
+    assert [n["key"] for n in notes] == ["2026-08-06:bio-pdf", "2026-08-07:geo-pdf"]
+    assert notes[0]["date"] == "2026-08-06"
+    assert notes[0]["sections"] == ["Receptors", "Muscles"]
+    assert notes[1]["sections"] == ["Area"]

@@ -299,6 +299,54 @@ def _build(cfg, course, *, invoke_fn=None) -> dict:
             "errors": result.get("errors", []), "rounds": result.get("rounds")}
 
 
+def _list_notes(cfg, course) -> dict:
+    """List a course's filed notes (key/date/section titles) for a picker."""
+    from scribetex.placement import list_notes
+    target = _course_main_tex(course)
+    if target is None or not target.exists():
+        return {"ok": False, "error": f"course document not found for {course!r}"}
+    return {"ok": True, "notes": list_notes(target.read_text(encoding="utf-8"))}
+
+
+def _correct(cfg, course, note_key, instruction, reread=False, *, invoke_fn=None) -> dict:
+    """Apply a plain-language fix to ONE filed note via the correction worker."""
+    from .prompt import (build_correct_prompt, parse_result, allowed_tools_args,
+                         mcp_config_args, new_nonce)
+    from .envpath import augmented_env
+    target = _course_main_tex(course)
+    if target is None or not target.exists():
+        return {"ok": False, "error": f"course document not found for {course!r}"}
+    # For re-read mode, locate the note's original file under Done/ (best effort).
+    note_path = ""
+    if reread:
+        date = note_key.split(":", 1)[0]
+        done_day = _config.done_dir(cfg) / date
+        if done_day.exists():
+            for f in done_day.iterdir():
+                if f.is_file():
+                    note_path = str(f)
+                    break
+    nonce = new_nonce()
+    if invoke_fn is None:
+        import subprocess
+        def invoke_fn(prompt_text, claude_bin):
+            proc = subprocess.run(
+                [claude_bin, "-p", prompt_text,
+                 *mcp_config_args(), *allowed_tools_args()],
+                capture_output=True, text=True, timeout=1800, env=augmented_env())
+            return proc.stdout or ""
+    try:
+        prompt_text = build_correct_prompt(course, note_key, instruction, nonce,
+                                           note_path=note_path)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    stdout = invoke_fn(prompt_text, cfg["claude_bin"])
+    result = parse_result(stdout, nonce)
+    if result.get("status") != "corrected":
+        return {"ok": False, "error": result.get("reason", "correction did not complete")}
+    return {"ok": True, "corrected": result}
+
+
 def _emit(obj) -> int:
     print(json.dumps(obj))
     return 0
@@ -356,6 +404,11 @@ def main(argv=None) -> int:
     cp = sub.add_parser("compile"); cp.add_argument("--course", required=True)
     bp = sub.add_parser("build"); bp.add_argument("--course", required=True)
     op = sub.add_parser("open-pdf"); op.add_argument("--course", required=True)
+    lp = sub.add_parser("list-notes"); lp.add_argument("--course", required=True)
+    kp = sub.add_parser("correct")
+    for a in ("--course", "--note-key", "--instruction"):
+        kp.add_argument(a, required=True)
+    kp.add_argument("--reread", action="store_true")
     args = ap.parse_args(argv)
 
     try:
@@ -415,6 +468,13 @@ def _dispatch(args) -> int:
     if args.cmd == "open-pdf":
         cfg = _load()
         return _emit(_open_pdf(cfg, args.course))
+    if args.cmd == "list-notes":
+        cfg = _load()
+        return _emit(_list_notes(cfg, args.course))
+    if args.cmd == "correct":
+        cfg = _load()
+        return _emit(_correct(cfg, args.course, args.note_key, args.instruction,
+                              reread=args.reread))
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 

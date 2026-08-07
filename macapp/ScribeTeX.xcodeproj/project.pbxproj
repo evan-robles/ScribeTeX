@@ -1,0 +1,319 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		044BE5C7F9365DFA9E124860 /* ReviewWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97D87D43DEA72A0BDF3A9F2E /* ReviewWindow.swift */; };
+		09DC132EC2B2CCC8EB3830E3 /* MenuContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EF9263E1F5B73F9ABB14691 /* MenuContent.swift */; };
+		10CA92C939ED8BF09405E816 /* Bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD4DCCD8108B2D2F8D1B6B3 /* Bridge.swift */; };
+		360330919D3A7E26F21FF74D /* CorrectionWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3DB45AF3456BD0CE71B66F /* CorrectionWindow.swift */; };
+		7C11BA3E4CA41DFACE844CD6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C0A87D653B2D4FD5FAD2DE0 /* Models.swift */; };
+		AF6FE4FA44454768866A2D08 /* ScribeTeXApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78BCC6508F2E80AEC4B7517 /* ScribeTeXApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		4D3DB45AF3456BD0CE71B66F /* CorrectionWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrectionWindow.swift; sourceTree = "<group>"; };
+		5C0A87D653B2D4FD5FAD2DE0 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		79ED69B588878E0D4B955A56 /* ScribeTeX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScribeTeX.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7AD4DCCD8108B2D2F8D1B6B3 /* Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.swift; sourceTree = "<group>"; };
+		8EF9263E1F5B73F9ABB14691 /* MenuContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuContent.swift; sourceTree = "<group>"; };
+		97D87D43DEA72A0BDF3A9F2E /* ReviewWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewWindow.swift; sourceTree = "<group>"; };
+		B78BCC6508F2E80AEC4B7517 /* ScribeTeXApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeTeXApp.swift; sourceTree = "<group>"; };
+		DB6A716871C4247263B33D92 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0F7E45AEA0EEC42C5F857D71 /* ScribeTeX */ = {
+			isa = PBXGroup;
+			children = (
+				7AD4DCCD8108B2D2F8D1B6B3 /* Bridge.swift */,
+				4D3DB45AF3456BD0CE71B66F /* CorrectionWindow.swift */,
+				DB6A716871C4247263B33D92 /* Info.plist */,
+				8EF9263E1F5B73F9ABB14691 /* MenuContent.swift */,
+				5C0A87D653B2D4FD5FAD2DE0 /* Models.swift */,
+				97D87D43DEA72A0BDF3A9F2E /* ReviewWindow.swift */,
+				B78BCC6508F2E80AEC4B7517 /* ScribeTeXApp.swift */,
+			);
+			path = ScribeTeX;
+			sourceTree = "<group>";
+		};
+		4FE2757A23C8828ADB02E238 = {
+			isa = PBXGroup;
+			children = (
+				0F7E45AEA0EEC42C5F857D71 /* ScribeTeX */,
+				D90E81FFD5EBA77FBDC3A2E7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D90E81FFD5EBA77FBDC3A2E7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				79ED69B588878E0D4B955A56 /* ScribeTeX.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8509D561DA782A120378A07F /* ScribeTeX */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B851966A70FFA6A951DE582 /* Build configuration list for PBXNativeTarget "ScribeTeX" */;
+			buildPhases = (
+				E58D6DF7723C304F189342D7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ScribeTeX;
+			packageProductDependencies = (
+			);
+			productName = ScribeTeX;
+			productReference = 79ED69B588878E0D4B955A56 /* ScribeTeX.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8EC0FADD592F8AC6F2BBB873 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					8509D561DA782A120378A07F = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = E098AB8023362CD589EC36D0 /* Build configuration list for PBXProject "ScribeTeX" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 4FE2757A23C8828ADB02E238;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D90E81FFD5EBA77FBDC3A2E7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8509D561DA782A120378A07F /* ScribeTeX */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E58D6DF7723C304F189342D7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10CA92C939ED8BF09405E816 /* Bridge.swift in Sources */,
+				360330919D3A7E26F21FF74D /* CorrectionWindow.swift in Sources */,
+				09DC132EC2B2CCC8EB3830E3 /* MenuContent.swift in Sources */,
+				7C11BA3E4CA41DFACE844CD6 /* Models.swift in Sources */,
+				044BE5C7F9365DFA9E124860 /* ReviewWindow.swift in Sources */,
+				AF6FE4FA44454768866A2D08 /* ScribeTeXApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		51851FF11AE93A990251FB7A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		5FA71654B509E8908F665B78 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScribeTeX/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.scribetex.menubar;
+				PRODUCT_NAME = ScribeTeX;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		61F2115247EF92C83EB8B17D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScribeTeX/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.scribetex.menubar;
+				PRODUCT_NAME = ScribeTeX;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		E81C97316A88D7B4345EA735 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2B851966A70FFA6A951DE582 /* Build configuration list for PBXNativeTarget "ScribeTeX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				61F2115247EF92C83EB8B17D /* Debug */,
+				5FA71654B509E8908F665B78 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E098AB8023362CD589EC36D0 /* Build configuration list for PBXProject "ScribeTeX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E81C97316A88D7B4345EA735 /* Debug */,
+				51851FF11AE93A990251FB7A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8EC0FADD592F8AC6F2BBB873 /* Project object */;
+}

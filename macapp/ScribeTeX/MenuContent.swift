@@ -39,6 +39,7 @@ struct MenuContent: View {
             inboxRow
             processRow
             compileRow
+            correctRow
             Divider()
             footer
         }
@@ -79,6 +80,18 @@ struct MenuContent: View {
                 }
             } label: {
                 Label("Compile a course…", systemImage: "doc.richtext")
+            }
+            .disabled(model.needsRepo || model.busy)
+        }
+    }
+
+    @ViewBuilder
+    private var correctRow: some View {
+        if !courses.isEmpty {
+            Button {
+                CorrectionWindowController.shared.show(model: model)
+            } label: {
+                Label("Correct a note…", systemImage: "pencil.and.outline")
             }
             .disabled(model.needsRepo || model.busy)
         }

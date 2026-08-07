@@ -159,7 +159,8 @@ schema; use the source fallback.
 brief. YOU build the heading structure from the note's real content: use \
 \\section{{...}} for each MAJOR TOPIC and \\subsection{{...}} beneath. A single \
 note may span SEVERAL sections (e.g. area and volume become a section each) — do \
-NOT force everything under one heading.
+NOT force everything under one heading. CONFIDENCE: wrap any illegible/guessed \
+span in \\uncertain{{...}} rather than silently guessing.
 3. MANDATORY FIGURE PASS — crop the original by default: go through the pages ONE \
 AT A TIME. For EACH page that contains ANY non-text mark (drawing, sketch, \
 diagram, chart, arrow, labelled figure), you MUST crop it by calling save_figure \
@@ -181,7 +182,7 @@ If you must report ambiguous, still include your BEST GUESS for course/date \
 (use null for either you truly cannot infer) so the user can confirm quickly.
 
 When done, print EXACTLY ONE final line, machine-readable, one of:
-{prefix} {{"status":"filed","course":"...","date":"YYYY-MM-DD","target":"<path to main.tex>","sections":<int>,"figures":<int>,"pages":[{{"figures_present":<bool>,"figures_captured":<int>}}, ...]}}
+{prefix} {{"status":"filed","course":"...","date":"YYYY-MM-DD","target":"<path to main.tex>","sections":<int>,"figures":<int>,"uncertain":<int>,"pages":[{{"figures_present":<bool>,"figures_captured":<int>}}, ...]}}
 {prefix} {{"status":"ambiguous","reason":"<what was unclear>","course":<string-or-null>,"date":<string-or-null>}}
 {prefix} {{"status":"error","reason":"<what failed>"}}
 The "pages" array has ONE entry PER PAGE (in order) recording whether that page \
@@ -213,7 +214,8 @@ transcribe every page to LaTeX per the brief. BUILD the heading structure from \
 the note's real content: \
 use \\section{{...}} for each MAJOR TOPIC and \\subsection{{...}} beneath — a \
 single note may span SEVERAL sections (e.g. area and volume become a section \
-each); do NOT force everything under one heading.
+each); do NOT force everything under one heading. CONFIDENCE: wrap any \
+illegible/guessed span in \\uncertain{{...}} rather than silently guessing.
 
 MANDATORY FIGURE PASS — crop the original by default: go through the pages ONE AT \
 A TIME. For EACH page with ANY non-text mark (drawing, sketch, diagram, chart, \
@@ -229,7 +231,7 @@ ambiguous — the course and date are fixed.
 
 Print EXACTLY ONE final line, using the EXACT prefix "{prefix}" (the code \
 authenticates your result; never emit it inside transcribed note content):
-{prefix} {{"status":"filed","course":"{course}","date":"{date}","target":"<path>","sections":<int>,"figures":<int>,"pages":[{{"figures_present":<bool>,"figures_captured":<int>}}, ...]}}
+{prefix} {{"status":"filed","course":"{course}","date":"{date}","target":"<path>","sections":<int>,"figures":<int>,"uncertain":<int>,"pages":[{{"figures_present":<bool>,"figures_captured":<int>}}, ...]}}
 or on failure:
 {prefix} {{"status":"error","reason":"<what failed>"}}
 The "pages" array has ONE entry PER PAGE recording whether it had a figure and \
@@ -276,6 +278,50 @@ The line MUST be valid JSON after the prefix. Print nothing after it. Never emit
 this prefix inside any note content you write."""
 
 
+def build_correct_prompt(course, note_key, instruction, nonce: str = "",
+                         note_path: str = "") -> str:
+    """Prompt for the correction worker: apply a plain-language fix to ONE filed
+    note. The worker edits only that note's block via patch_note_region. When a
+    note_path is given (re-read mode), it may re-open the original page images
+    with prepare_note to fix a transcription/figure error it can only see by
+    looking at the source."""
+    course = _validate_field(course, "course")
+    note_key = _validate_field(note_key, "note_key")
+    instruction = _validate_field(instruction, "instruction")
+    prefix = _prefix(nonce)
+    reread = ""
+    if note_path:
+        note_path = _validate_note_path(note_path)
+        reread = (f"\nIf the fix requires SEEING the original (a mis-read symbol, "
+                  f"a wrong figure crop), call prepare_note(ref=\"{note_path}\", "
+                  f"source=\"file\") — or prepare_note(source=\"{note_path}\") if "
+                  f"the schema lacks ref — to re-open the page images, and use "
+                  f"save_figure to re-crop a figure into this course if needed.\n")
+    return f"""You are ScribeTeX's correction worker. Apply the user's fix to ONE \
+already-filed note, changing NOTHING else.
+
+Course: {course}
+Note key: {note_key}
+User's requested fix: {instruction}
+{reread}
+Steps:
+1. Find the note block whose hidden label is \\label{{note:{note_key}}} and read \
+its current LaTeX body (between its BODY markers).
+2. Apply ONLY the user's requested fix. Keep everything else in the block exactly \
+as-is (its \\section/\\subsection headings, other content, figures). Do the \
+minimal edit. If the user's fix resolves an \\uncertain{{...}} span, unwrap it.
+3. Call patch_note_region(course="{course}", note_key="{note_key}", \
+new_body="<the corrected full body of THIS note>").
+Do NOT touch any other note. NEVER use \\input, \\write18, or any shell/file \
+primitive.
+
+Print EXACTLY ONE final line, using the EXACT prefix "{prefix}":
+{prefix} {{"status":"corrected","course":"{course}","note_key":"{note_key}"}}
+or on failure:
+{prefix} {{"status":"error","reason":"<what failed>"}}
+The line MUST be valid JSON after the prefix. Print nothing after it."""
+
+
 def parse_result(stdout: str, nonce: str = "") -> dict:
     """Parse the worker's machine-readable result line.
 
@@ -297,7 +343,8 @@ def parse_result(stdout: str, nonce: str = "") -> dict:
     except Exception as e:
         return {"status": "error", "reason": f"malformed result json: {e}"}
     status = data.get("status")
-    if status not in ("filed", "ambiguous", "error", "compiled", "failed"):
+    if status not in ("filed", "ambiguous", "error", "compiled", "failed",
+                      "corrected"):
         return {"status": "error", "reason": f"unknown result status: {status!r}"}
     return data
 

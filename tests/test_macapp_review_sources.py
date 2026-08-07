@@ -19,6 +19,16 @@ def test_bridge_has_compile_build_openpdf():
         assert cmd in b, f"Bridge missing {cmd}"
 
 
+def test_bridge_has_correct_and_listnotes():
+    b = (APP / "Bridge.swift").read_text()
+    for cmd in ("correct", "list-notes"):
+        assert cmd in b, f"Bridge missing {cmd}"
+
+
+def test_correction_window_source_exists():
+    assert (APP / "CorrectionWindow.swift").exists()
+
+
 def test_app_uses_usernotifications_and_window():
     app = (APP / "ScribeTeXApp.swift").read_text()
     assert "UserNotifications" in app or "UNUserNotificationCenter" in app

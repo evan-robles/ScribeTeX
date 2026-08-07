@@ -25,6 +25,19 @@ def test_brief_scopes_tikz_to_data_charts():
     assert "data" in b and ("chart" in b or "bar" in b or "scatter" in b)
 
 
+def test_brief_instructs_confidence_marking():
+    b = build_brief()
+    assert "\\uncertain" in b
+    assert "illegible" in b.lower() or "guess" in b.lower()
+
+
+def test_preamble_defines_uncertain():
+    from scribetex.preamble import render_preamble, ALLOWED_MACROS
+    pre = render_preamble(footer_name="X", course_number="Y")
+    assert "\\newcommand{\\uncertain}" in pre
+    assert "\\uncertain" in ALLOWED_MACROS
+
+
 def test_brief_documents_bbox_fractions():
     b = build_brief()
     assert "x0" in b and "x1" in b

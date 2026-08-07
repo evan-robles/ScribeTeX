@@ -67,6 +67,23 @@ def document_sections(main_tex: str) -> list[str]:
     return _SECTION_RE.findall(main_tex[start:end])
 
 
+def list_notes(main_tex: str) -> list[dict]:
+    """Each filed note as {key, date, sections}, in document order.
+
+    key = "DATE:filename-slug" (the correction/patch key); date is the DATE part;
+    sections are the \\section titles inside that note's block. Powers a "correct
+    a note" picker that shows the user a human-readable list of what's filed."""
+    out: list[dict] = []
+    labels = list(_NOTE_LABEL_RE.finditer(main_tex))
+    for i, m in enumerate(labels):
+        key = m.group(1)
+        block_start = m.end()
+        block_end = labels[i + 1].start() if i + 1 < len(labels) else len(main_tex)
+        sections = _SECTION_RE.findall(main_tex[block_start:block_end])
+        out.append({"key": key, "date": key.split(":", 1)[0], "sections": sections})
+    return out
+
+
 def note_block(body: str, date_iso: str, source_name: str) -> str:
     """A self-contained note block: a hidden date+filename label followed by the
     LLM-authored LaTeX (which carries its own \\section/\\subsection headings),

@@ -31,3 +31,12 @@ struct ReviewList: Codable { let ok: Bool; let items: [ReviewItem] }
 /// Response of `known-courses`: the course directory names already on disk.
 struct CoursesList: Codable { let ok: Bool; let courses: [String] }
 struct ActionResult: Codable { let ok: Bool; let watcher_running: Bool? ; let error: String? }
+
+/// A filed note, for the "Correct a note" picker.
+struct NoteRef: Codable, Identifiable {
+    var id: String { key }
+    let key: String        // "DATE:filename-slug" (the correction key)
+    let date: String
+    let sections: [String] // \section titles inside this note's block
+}
+struct NotesList: Codable { let ok: Bool; let notes: [NoteRef] }
