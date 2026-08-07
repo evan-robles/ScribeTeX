@@ -11,6 +11,21 @@ def test_build_prompt_mentions_path_and_contract():
     # must instruct not to guess when ambiguous
     low = p.lower()
     assert "ambiguous" in low and ("do not" in low or "don't" in low)
+    # figure policy: crop by default, never redraw diagrams
+    assert "crop" in low and "never" in low
+
+
+def test_prompts_forbid_redrawing_diagrams():
+    # Both entry points must carry the crop-by-default / never-redraw policy so
+    # the worker embeds cropped originals instead of inventing TikZ diagrams.
+    for text in (
+        prompt.build_prompt("/notes/inbox/n.pdf"),
+        prompt.build_refile_prompt("/notes/inbox/n.pdf", "C", "S", "sub", "2026-08-06"),
+    ):
+        low = text.lower()
+        assert "save_figure" in low
+        assert "crop" in low
+        assert "never" in low and ("invent" in low or "redraw" in low)
 
 
 def test_build_prompt_safe_paths():

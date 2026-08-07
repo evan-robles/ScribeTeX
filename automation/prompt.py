@@ -74,9 +74,12 @@ Note file: {note_path}
 Steps:
 1. Call prepare_note(source="file", ref="{note_path}").
 2. Read EVERY returned page image and transcribe it to LaTeX per the returned \
-brief (body only). Reproduce charts/tables/graphs as TikZ/pgfplots/tabular; embed \
-freehand drawings by calling save_figure with a fractional bbox; prose only as a \
-last resort.
+brief (body only). FIGURES: crop the original by default — embed ANY drawing, \
+sketch, diagram, or labelled figure as a cropped image by calling save_figure \
+with a fractional bbox, then \\includegraphics. Use TikZ/pgfplots ONLY for a \
+genuine data chart (bar/line/scatter with recoverable numbers) and tabular ONLY \
+for a data table; prose only as a last resort. NEVER redraw or invent a \
+hand-drawn diagram as TikZ from imagination — when in doubt, crop the original.
 3. Decide the course, the top-level section, a concise subsection title, and the \
 date from the note's content.
 4. Call resolve_placement(course_hint, section_hint, subsection_hint, date).
@@ -112,10 +115,16 @@ Subsection: {subsection}
 Class date: {date}
 
 Call prepare_note(source="file", ref="{note_path}"), transcribe every page to \
-LaTeX per the brief (reproduce charts/tables as TikZ/pgfplots/tabular; embed \
-freehand drawings via save_figure), then call write_section with course \
-"{course}", section "{section}", subsection "{subsection}", date "{date}". \
+LaTeX per the brief, then call write_section with course "{course}", section \
+"{section}", subsection "{subsection}", date "{date}". \
 Do NOT report ambiguous — the user has supplied all placement values.
+
+FIGURES: crop the original by default — embed ANY drawing, sketch, diagram, or \
+labelled figure as a cropped image via save_figure (fractional bbox) + \
+\\includegraphics. Use TikZ/pgfplots ONLY for a genuine data chart \
+(bar/line/scatter with recoverable numbers) and tabular ONLY for a data table; \
+prose only as a last resort. NEVER redraw or invent a hand-drawn diagram as \
+TikZ from imagination — when in doubt, crop the original.
 
 Print EXACTLY ONE final line:
 {RESULT_PREFIX} {{"status":"filed","course":"{course}","section":"{section}","subsection":"{subsection}","date":"{date}","target":"<path>","figures":<int>}}

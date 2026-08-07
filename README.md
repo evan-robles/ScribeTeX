@@ -31,9 +31,9 @@ pip install -e ".[dev]"
   course_number="", on_duplicate="warn")` — scaffold the course if new and add
   the note as a subsection under the given topic section.
 - `save_figure(course, page_image, bbox, name)` — crop a region of a rendered
-  note page into the course's `ExtFiles/` so a freehand drawing can be embedded
-  with `\includegraphics`. Use only when a figure can't be faithfully
-  reproduced as TikZ/pgfplots/tabular.
+  note page into the course's `ExtFiles/` and embed it with `\includegraphics`.
+  This is the default for any drawing/diagram/sketch; TikZ/pgfplots is reserved
+  for genuine data charts and `tabular` for data tables (see Figures below).
 
 Each note's subsection carries a hidden `\label{note:YYYY-MM-DD}` used only for
 duplicate detection.
@@ -70,15 +70,18 @@ The plugin bundles five self-contained skills (each a `SKILL.md` + `scripts/`):
 
 ## Figures
 
-When a note contains a chart, table, or graph, reproduce it in LaTeX first —
-TikZ/pgfplots for plots and diagrams, `tabular` for tables — so it stays
-editable and renders crisply. Only fall back to embedding a cropped image of a
-freehand drawing (something that genuinely can't be redrawn in LaTeX) via
+Cropping the original is the default. Any drawing, sketch, diagram, or labelled
+figure — anatomical, schematic, freehand, a flowchart, anything whose exact
+appearance matters — is embedded as a cropped image of the real page via
 `save_figure(course, page_image, bbox, name)`, where `bbox` is
 `[x0, y0, x1, y1]` as fractions in `[0,1]` of the page (origin top-left); this
 crops the region into the course's `ExtFiles/` and returns a ready
-`\includegraphics` snippet. Prose description is the last resort, when neither
-LaTeX reproduction nor a figure crop is practical.
+`\includegraphics` snippet. TikZ/pgfplots is used **only** for a genuine data
+chart (a bar/line/scatter plot with recoverable numeric values), and `tabular`
+only for a grid-like data table. A hand-drawn diagram is never reconstructed as
+TikZ from imagination — guessing a sketch's geometry misrepresents the note, so
+when in doubt the original is cropped. Prose is the last resort, when a region
+genuinely can't be cropped.
 
 ## Configuration
 
