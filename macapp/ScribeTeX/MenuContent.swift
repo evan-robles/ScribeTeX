@@ -14,7 +14,6 @@ import UniformTypeIdentifiers
 ///  - Locate ScribeTeX… / Refresh / Quit
 struct MenuContent: View {
     @ObservedObject var model: AppModel
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -155,8 +154,11 @@ struct MenuContent: View {
                       systemImage: "tray.full")
             }
             // Full editor: set course/section/subsection/date and re-file.
+            // Open the window via the AppKit controller directly — SwiftUI's
+            // openWindow no-ops from inside a MenuBarExtra popover on current
+            // macOS, so we manage a real NSWindow instead.
             Button {
-                openWindow(id: "review")
+                ReviewWindowController.shared.show(model: model)
             } label: {
                 Label("Review Notes…", systemImage: "square.and.pencil")
             }

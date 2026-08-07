@@ -40,6 +40,14 @@ def test_build_prompt_rejects_unsafe_chars(unsafe_char, example):
         prompt.build_prompt(example)
 
 
+def test_allowed_tools_args_authorizes_mcp_headless():
+    # Headless `claude -p` cannot prompt for permission; the worker must pass a
+    # flag that authorizes the ScribeTeX MCP tools or every tool call is blocked.
+    args = prompt.allowed_tools_args()
+    assert "--permission-mode" in args
+    assert "bypassPermissions" in args
+
+
 def test_parse_filed():
     out = 'blah\nSCRIBETEX_RESULT: {"status":"filed","course":"Bio","target":"/x/main.tex"}\ndone'
     r = prompt.parse_result(out)

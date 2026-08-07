@@ -4,6 +4,19 @@ import json
 
 RESULT_PREFIX = "SCRIBETEX_RESULT:"
 
+def allowed_tools_args() -> list:
+    """CLI tokens authorizing the ingest worker's MCP tools for `claude -p`.
+
+    Headless `claude -p` is non-interactive and cannot prompt for permission, so
+    without this the very first tool call (prepare_note) is blocked and
+    transcription never starts. `--allowedTools mcp__ScribeTeX__*` was verified
+    NOT to authorize the plugin's MCP tools in headless mode (the call is still
+    blocked); `--permission-mode bypassPermissions` does permit them, so that is
+    what the unattended worker uses. This runs only against the ScribeTeX MCP
+    tools + Read/Write in a worker we construct, on a note file we chose.
+    """
+    return ["--permission-mode", "bypassPermissions"]
+
 
 class UnsafeNotePathError(ValueError):
     """Raised when a note path contains characters unsafe to embed in a prompt."""

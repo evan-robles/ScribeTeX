@@ -158,7 +158,7 @@ def _resolve_parked_note(cfg, path):
 
 def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> dict:
     from scribetex.classify import parse_date
-    from .prompt import build_refile_prompt, parse_result
+    from .prompt import build_refile_prompt, parse_result, allowed_tools_args
     from .envpath import augmented_env
     src, err = _resolve_parked_note(cfg, path)
     if err:
@@ -170,9 +170,12 @@ def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> 
     if invoke_fn is None:
         import subprocess
         def invoke_fn(prompt_text, claude_bin):
-            proc = subprocess.run([claude_bin, "-p", prompt_text],
-                                  capture_output=True, text=True, timeout=1800,
-                                  env=augmented_env())
+            # Pre-authorize the ScribeTeX MCP tools; headless `claude -p` cannot
+            # prompt for permission, so without this the tool calls are blocked.
+            proc = subprocess.run(
+                [claude_bin, "-p", prompt_text, *allowed_tools_args()],
+                capture_output=True, text=True, timeout=1800,
+                env=augmented_env())
             return proc.stdout or ""
     try:
         prompt_text = build_refile_prompt(str(src), course, section, subsection, date_iso)

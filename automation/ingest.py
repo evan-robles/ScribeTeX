@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import config as _config
 from . import readiness, state
-from .prompt import build_prompt, parse_result
+from .prompt import build_prompt, parse_result, allowed_tools_args
 
 # Cap on consecutive error outcomes for the same file identity before it is
 # dead-lettered to NeedsReview/ instead of being retried forever.
@@ -24,7 +24,7 @@ def invoke_claude(note_path, claude_bin, run_fn=None, timeout=1800) -> str:
         # `claude` in ~/.local/bin / Homebrew when invoking it.
         from .envpath import augmented_env
         proc = run_fn(
-            [claude_bin, "-p", build_prompt(note_path)],
+            [claude_bin, "-p", build_prompt(note_path), *allowed_tools_args()],
             capture_output=True, text=True, timeout=timeout,
             env=augmented_env(),
         )

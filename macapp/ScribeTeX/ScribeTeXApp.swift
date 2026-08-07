@@ -134,19 +134,60 @@ final class AppModel: ObservableObject {
     }
 }
 
-/// Shared bus between the AppKit notification-center delegate (which cannot
-/// reach SwiftUI's `openWindow`) and the SwiftUI scene graph. When the user
-/// taps a review notification, the delegate flips `openReviewRequested`; a tiny
-/// observer view inside the MenuBarExtra reacts and calls `openWindow`.
+/// Opens and owns the Review window as a plain AppKit `NSWindow` hosting the
+/// SwiftUI `ReviewWindow`.
+///
+/// SwiftUI's `Window(id:)` + `openWindow` is unreliable from a `MenuBarExtra`
+/// popover on current macOS (the popover dismisses before the window scene
+/// activates, so nothing appears). Managing the window directly in AppKit
+/// sidesteps that entirely: `show(model:)` is a direct call that always brings a
+/// real window to the front, whether triggered from the menu or a notification.
 @MainActor
-final class NotificationRouter: ObservableObject {
-    static let shared = NotificationRouter()
-    @Published var openReviewRequested: Bool = false
+final class ReviewWindowController: NSObject, NSWindowDelegate {
+    static let shared = ReviewWindowController()
+    private var window: NSWindow?
+
+    func show(model: AppModel) {
+        // This is an LSUIElement (menu-bar agent) app, which launches with the
+        // .accessory activation policy — under which normal windows will NOT
+        // reliably become key or even appear. Switch to .regular so the window
+        // can show and take focus; revert to .accessory when it closes so the
+        // app stays out of the Dock. Without this, makeKeyAndOrderFront silently
+        // does nothing.
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let window {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        let hosting = NSHostingController(rootView: ReviewWindow(model: model))
+        let win = NSWindow(contentViewController: hosting)
+        win.title = "Review Notes"
+        win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        win.setContentSize(NSSize(width: 480, height: 420))
+        win.isReleasedWhenClosed = false
+        win.delegate = self
+        win.center()
+        window = win
+        win.makeKeyAndOrderFront(nil)
+    }
+
+    /// When the Review window closes, drop back to accessory policy so the app
+    /// returns to being a pure menu-bar agent (no Dock icon).
+    func windowWillClose(_ notification: Notification) {
+        window = nil
+        NSApp.setActivationPolicy(.accessory)
+    }
 }
 
 /// UNUserNotificationCenter delegate: shows banners while the app is frontmost
 /// and opens the Review window when a notification is tapped.
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    /// The app's model, needed to build the Review window on a notification tap.
+    /// Set once at launch by AppDelegate.
+    weak var model: AppModel?
+
     /// Show the banner even when ScribeTeX is the active app.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -156,16 +197,17 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound])
     }
 
-    /// User tapped the notification — bring the app forward and request the
-    /// Review window.
+    /// User tapped the notification — bring the app forward and open the Review
+    /// window directly (AppKit), which works even with the popover closed.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         Task { @MainActor in
-            NSApp.activate(ignoringOtherApps: true)
-            NotificationRouter.shared.openReviewRequested = true
+            if let model = self.model {
+                ReviewWindowController.shared.show(model: model)
+            }
         }
         completionHandler()
     }
@@ -174,7 +216,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 /// AppKit lifecycle shim: installs the notification-center delegate and requests
 /// authorization once, at launch.
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let notificationDelegate = NotificationDelegate()
+    let notificationDelegate = NotificationDelegate()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let center = UNUserNotificationCenter.current()
@@ -190,22 +232,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct ScribeTeXApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
-    @StateObject private var router = NotificationRouter.shared
 
     var body: some Scene {
         MenuBarExtra("ScribeTeX", systemImage: menuBarSymbol) {
             MenuContent(model: model)
-                .onAppear { model.start() }
-                .background(ReviewWindowOpener(router: router))
+                .onAppear {
+                    model.start()
+                    // Give the notification-tap handler a model to open the
+                    // Review window with.
+                    appDelegate.notificationDelegate.model = model
+                }
         }
         .menuBarExtraStyle(.window)
-
-        // A dedicated window for reviewing/re-filing parked notes. Opened from
-        // the "Review Notes…" menu row or by tapping a notification.
-        Window("Review Notes", id: "review") {
-            ReviewWindow(model: model)
-        }
-        .windowResizability(.contentSize)
     }
 
     /// Icon reflects at-a-glance health: filled when the watcher is running,
@@ -215,23 +253,5 @@ struct ScribeTeXApp: App {
             return "doc.text.magnifyingglass"
         }
         return (model.status?.watcher_running == true) ? "doc.text.fill" : "doc.text"
-    }
-}
-
-/// Invisible helper that lives inside the SwiftUI scene so it has access to the
-/// `openWindow` environment action, and drives it from the notification router.
-private struct ReviewWindowOpener: View {
-    @ObservedObject var router: NotificationRouter
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .onChange(of: router.openReviewRequested) { requested in
-                if requested {
-                    openWindow(id: "review")
-                    router.openReviewRequested = false
-                }
-            }
     }
 }
