@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import threading
 from pathlib import Path
 
@@ -256,8 +257,22 @@ def _save_figure(course: str, page_image: str, bbox, name: str) -> dict:
     return res
 
 
+_HEADER_NUM_RE = re.compile(r"\\fancyhead\[R\]\{([^}]*)\}")
+
+
+def _course_number_from_main(main_tex: Path) -> str:
+    """Recover the course number from an existing main.tex's running header, so a
+    regenerated study guide carries the same number. Empty if not found."""
+    try:
+        m = _HEADER_NUM_RE.search(main_tex.read_text(encoding="utf-8"))
+        return m.group(1) if m else ""
+    except OSError:
+        return ""
+
+
 def _write_study_aid(course: str, kind: str, content: str) -> dict:
-    """Write a study guide (as a note block) or flashcards (a .tsv sidecar)."""
+    """Write flashcards (a .tsv sidecar) or a study guide (a SEPARATE, standalone
+    compilable study-guide.tex — not embedded in main.tex)."""
     slug = course_slug(course)
     if not slug:
         return {"written": False, "error": f"course {course!r} has no usable slug"}
@@ -269,23 +284,20 @@ def _write_study_aid(course: str, kind: str, content: str) -> dict:
         out = course_dir / "flashcards.tsv"
         out.write_text(content, encoding="utf-8")
         return {"written": True, "kind": "flashcards", "path": str(out)}
-    # guide: file it as a note block dated today-ish under a stable key so it can
-    # be regenerated (replace) rather than duplicated.
+    # guide: write a standalone study-guide.tex (its own document, sharing the
+    # course preamble + ExtFiles/); regenerating overwrites it, not main.tex.
     try:
         body = check_body(content)
     except UnsafeLatexError as e:
         return {"written": False, "error": str(e)}
-    with _lock_for(target):
-        try:
-            new_text, _ = insert_note(
-                target.read_text(encoding="utf-8"), body,
-                "0001-01-01", "study-guide", on_duplicate="replace")
-        except MalformedDocumentError as e:
-            return {"written": False, "error": f"malformed document: {e}"}
-        tmp = target.with_suffix(".tex.tmp")
-        tmp.write_text(new_text, encoding="utf-8")
-        os.replace(tmp, target)
-    return {"written": True, "kind": "guide", "path": str(target)}
+    from .scaffold import build_study_guide_tex
+    number = _course_number_from_main(target)
+    doc = build_study_guide_tex(course, number, body)
+    out = course_dir / "study-guide.tex"
+    tmp = out.with_suffix(".tex.tmp")
+    tmp.write_text(doc, encoding="utf-8")
+    os.replace(tmp, out)
+    return {"written": True, "kind": "guide", "path": str(out)}
 
 
 def _read_course(course: str) -> dict:
@@ -446,15 +458,18 @@ def save_figure(course: str, page_image: str, bbox: list[float], name: str) -> d
 
 @mcp.tool
 def write_study_aid(course: str, kind: str, content: str) -> dict:
-    """Write a study aid for a course. kind="guide" files `content` (LaTeX body
-    with its own \\section) into the document as a regenerable Study Guide block;
-    kind="flashcards" writes `content` (tab-separated question<TAB>answer lines)
-    to flashcards.tsv next to the course, ready to import into Anki.
+    """Write a study aid for a course. kind="guide" writes `content` (LaTeX body
+    with its own \\section headings) as a SEPARATE standalone document
+    study-guide.tex (its own \\documentclass/preamble is added by the server,
+    sharing the course's packages + ExtFiles/; regenerating overwrites it, and it
+    does NOT touch main.tex). kind="flashcards" writes `content` (tab-separated
+    question<TAB>answer lines) to flashcards.tsv next to the course, for Anki.
 
     Args:
         course: the course NAME.
         kind: "guide" or "flashcards".
-        content: LaTeX body (guide) or TSV text (flashcards).
+        content: for guide, the LaTeX BODY only (\\section/\\subsection + text,
+            NO preamble/\\documentclass/\\begin{document}); for flashcards, TSV.
     Returns {"written": true, kind, path} or {"written": false, "error": ...}."""
     return _write_study_aid(course, kind, content)
 

@@ -32,7 +32,8 @@ def _worker(status_json: dict):
 
 def test_studyguide_prompt_guide_and_flashcards():
     g = prompt.build_studyguide_prompt("Bio", "guide")
-    assert "read_course" in g and "write_study_aid" in g and "Study Guide" in g
+    assert "read_course" in g and "write_study_aid" in g
+    assert "study-guide.tex" in g or "standalone" in g.lower()
     f = prompt.build_studyguide_prompt("Bio", "flashcards")
     assert "flashcards" in f.lower() and "tab-separated" in f.lower()
 
@@ -98,14 +99,22 @@ def test_write_study_aid_flashcards(tmp_path, monkeypatch):
     assert (tmp_path / "notes" / course_slug("Bio") / "flashcards.tsv").read_text().startswith("Q1")
 
 
-def test_write_study_aid_guide_is_regenerable(tmp_path, monkeypatch):
+def test_write_study_aid_guide_is_separate_standalone_file(tmp_path, monkeypatch):
     monkeypatch.setenv("SCRIBETEX_NOTES_ROOT", str(tmp_path / "notes"))
     main = _course(tmp_path, "Bio")
     from scribetex import server
-    server._write_study_aid("Bio", "guide", "\\section{Study Guide}\nv1")
-    server._write_study_aid("Bio", "guide", "\\section{Study Guide}\nv2")
-    text = main.read_text()
-    assert "v2" in text and "v1" not in text  # replaced, not duplicated
+    r = server._write_study_aid("Bio", "guide", "\\section{Overview}\nv1")
+    guide = main.parent / "study-guide.tex"
+    assert r["path"] == str(guide) and guide.exists()
+    # It's a SEPARATE, standalone document — not embedded in main.tex.
+    assert "study-guide.tex" not in main.read_text()  # main untouched
+    doc = guide.read_text()
+    assert "\\documentclass" in doc and "\\begin{document}" in doc
+    assert "\\section{Overview}" in doc
+    # Regenerating overwrites the guide file (not duplicated).
+    server._write_study_aid("Bio", "guide", "\\section{Overview}\nv2")
+    doc2 = guide.read_text()
+    assert "v2" in doc2 and "v1" not in doc2
 
 
 # --- read_course ---

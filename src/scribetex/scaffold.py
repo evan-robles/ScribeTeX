@@ -55,6 +55,30 @@ def build_main_tex(course_name: str, course_number: str,
     )
 
 
+def build_study_guide_tex(course_name: str, course_number: str, body: str,
+                          footer_name: str = DEFAULT_FOOTER_NAME) -> str:
+    """A STANDALONE, compilable study-guide document (separate from main.tex).
+
+    Reuses the course preamble (same packages/macros/\\graphicspath so figures and
+    \\uncertain work) and wraps the LLM-authored guide `body` in its own title +
+    document. It shares the course's ExtFiles/ via \\graphicspath, so any
+    \\includegraphics the guide reuses resolves."""
+    course_name = escape_title(course_name)
+    course_number = escape_title(course_number)
+    preamble = render_preamble(footer_name=footer_name, course_number=course_number)
+    return (
+        preamble
+        + "\n\\begin{document}\n\n"
+        + "\\begin{center}\n"
+        + f"    {{\\Huge\\bfseries {course_name} — Study Guide\\par}}\n"
+        + f"    \\vspace{{0.3cm}}\n    {{\\large {course_number} \\quad \\today\\par}}\n"
+        + "\\end{center}\n"
+        + "\\vspace{0.6cm}\n\n"
+        + body.rstrip("\n") + "\n\n"
+        + "\\end{document}\n"
+    )
+
+
 def scaffold_course(root: Path, course_name: str, course_number: str,
                     author: str = DEFAULT_AUTHOR,
                     affiliation: str = DEFAULT_AFFILIATION,

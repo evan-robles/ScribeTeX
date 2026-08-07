@@ -339,8 +339,10 @@ def build_studyguide_prompt(course, kind, nonce: str = "") -> str:
     else:
         task = ("Produce a concise STUDY-GUIDE summary of the whole course — the "
                 "big ideas, key definitions/formulas, and how topics connect — as "
-                "LaTeX body (its own \\section{Study Guide}/\\subsection headings). "
-                "Call write_study_aid(course, kind=\"guide\", content=<LaTeX body>).")
+                "a LaTeX BODY with its own \\section/\\subsection headings (NO "
+                "preamble or \\documentclass — the server wraps it into a "
+                "standalone study-guide.tex). Call write_study_aid(course, "
+                "kind=\"guide\", content=<LaTeX body>).")
         done = "guide"
     return f"""You are ScribeTeX's study-aid worker for the course "{course}".
 
