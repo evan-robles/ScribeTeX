@@ -1,9 +1,11 @@
 {
   "mcpServers": {
     "ScribeTeX": {
-      "command": "scribetex",
-      "args": [],
-      "env": {}
+      "command": "python3",
+      "args": ["-m", "scribetex.server"],
+      "env": {
+        "PYTHONPATH": "src"
+      }
     }
   }
 }

@@ -245,20 +245,22 @@ def _save_figure(course: str, page_image: str, bbox, name: str) -> dict:
 
 
 @mcp.tool
-def prepare_note(source: str = "file", ref: str = "") -> dict:
+def prepare_note(ref: str, source: str = "file") -> dict:
     """Render a handwritten note export to page images and return the
     transcription brief plus placement context, so the calling agent can read
     and transcribe it.
 
     Args:
-        source: "file" for a local PDF/image path; "goodnotes" is an alias for
-            the same (GoodNotes PDF/PNG/JPG/HEIC exports).
-        ref: the path to the note. For a PDF, every page is rendered to a PNG.
+        ref: REQUIRED. The filesystem path to the note (PDF or image). For a PDF,
+            every page is rendered to a PNG. Pass the full path here — the tool
+            cannot render anything without it.
+        source: "file" (default) for a local PDF/image path; "goodnotes" is an
+            alias for the same (GoodNotes PDF/PNG/JPG/HEIC exports).
     Returns a dict with: page_images (PNG paths to read and transcribe),
     brief (the rules you must follow when transcribing), notes_root, and
     known_courses. On bad input returns {"error": ..., "page_images": []}.
     After calling this, READ every page image and transcribe it yourself, then
-    decide a section title, a subsection title, and the date."""
+    decide the course and date (you build the section structure from content)."""
     return _prepare_note(source, ref)
 
 
