@@ -10,31 +10,40 @@ from pathlib import Path
 
 from . import config as _config
 from . import readiness, state
-from .prompt import build_prompt, parse_result, allowed_tools_args
+from .prompt import build_prompt, parse_result, allowed_tools_args, new_nonce
 
 # Cap on consecutive error outcomes for the same file identity before it is
 # dead-lettered to NeedsReview/ instead of being retried forever.
 MAX_ERROR_ATTEMPTS = 3
 
 
-def invoke_claude(note_path, claude_bin, run_fn=None, timeout=1800) -> str:
+def invoke_claude(note_path, claude_bin, run_fn=None, timeout=1800):
+    """Run the headless worker on one note. Returns (stdout, nonce).
+
+    A per-invocation nonce binds the result line so untrusted note content can't
+    forge it (see prompt.new_nonce / parse_result). Error fallbacks use the SAME
+    nonced prefix so parse_result(stdout, nonce) recognizes them.
+    """
     run_fn = run_fn or subprocess.run
+    nonce = new_nonce()
+    prefix = f"SCRIBETEX_RESULT_{nonce}:"
     try:
         # Augment PATH so a GUI-launched app (minimal PATH) can still find
         # `claude` in ~/.local/bin / Homebrew when invoking it.
         from .envpath import augmented_env
         proc = run_fn(
-            [claude_bin, "-p", build_prompt(note_path), *allowed_tools_args()],
+            [claude_bin, "-p", build_prompt(note_path, nonce), *allowed_tools_args()],
             capture_output=True, text=True, timeout=timeout,
             env=augmented_env(),
         )
         out = proc.stdout or ""
-        if proc.returncode != 0 and "SCRIBETEX_RESULT:" not in out:
-            return (out + f"\nSCRIBETEX_RESULT: "
+        if proc.returncode != 0 and prefix not in out:
+            out += (f"\n{prefix} "
                     f'{{"status":"error","reason":"claude exit {proc.returncode}"}}')
-        return out
+        return out, nonce
     except Exception as e:  # timeout / not found / etc.
-        return f'SCRIBETEX_RESULT: {{"status":"error","reason":"invoke failed: {e}"}}'
+        return (f'{prefix} {{"status":"error","reason":"invoke failed: {e}"}}',
+                nonce)
 
 
 def _as_str(s):
@@ -71,6 +80,12 @@ def route_file(note_path, result, cfg, now_fn=None) -> str:
     note = Path(note_path)
     status = result.get("status", "error")
     if status == "filed":
+        # Trust "filed" only if the worker actually wrote the target; otherwise
+        # treat it as an error and leave the note in the inbox for retry, rather
+        # than moving a never-written note to Done (silent loss).
+        target = result.get("target")
+        if not target or not Path(target).expanduser().exists():
+            return "error"
         day = now_fn().strftime("%Y-%m-%d")
         dest_dir = _config.done_dir(cfg) / day
         dest_dir.mkdir(parents=True, exist_ok=True)
@@ -131,8 +146,11 @@ def process_inbox(cfg, invoke_fn=None, notify_fn=None, ready_fn=None,
                 continue
             if not ready_fn(note, settle):
                 continue
-            stdout = invoke_fn(str(note), cfg["claude_bin"])
-            result = parse_result(stdout)
+            invoked = invoke_fn(str(note), cfg["claude_bin"])
+            # Default invoke_claude returns (stdout, nonce); test fakes may
+            # return a bare string (nonce="" -> plain SCRIBETEX_RESULT: prefix).
+            stdout, nonce = invoked if isinstance(invoked, tuple) else (invoked, "")
+            result = parse_result(stdout, nonce)
             outcome = route_file(note, result, cfg, now_fn=now_fn)
 
             if outcome in ("filed", "ambiguous"):

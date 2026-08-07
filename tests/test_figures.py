@@ -49,11 +49,12 @@ def test_crop_writes_to_extfiles(tmp_path):
     assert Image.open(out).size == (100, 100)
 
 
-def test_crop_allows_scribetex_temp_page(tmp_path):
-    import tempfile
-    # A page under a scribetex_* render dir is also allowed, even when the
-    # notes root is elsewhere.
-    render_dir = Path(tempfile.mkdtemp(prefix="scribetex_"))
+def test_crop_allows_registered_render_dir_page(tmp_path):
+    # A page under a render dir that prepare_note REGISTERED is allowed, even
+    # when the notes root is elsewhere.
+    render_dir = tmp_path / "render_xyz"
+    render_dir.mkdir()
+    figures.register_render_dir(render_dir)
     page = _make_png(render_dir, w=100, h=100, name="p1.png")
     root = tmp_path / "notes"
     res = figures.crop_to_extfiles(
@@ -63,8 +64,20 @@ def test_crop_allows_scribetex_temp_page(tmp_path):
     assert (root / "Bio" / "ExtFiles" / "fig.png").exists()
 
 
+def test_crop_rejects_unregistered_scribetex_named_dir(tmp_path):
+    # Confused-deputy guard: a dir merely NAMED like a render dir (scribetex_*)
+    # but never registered by prepare_note is refused — any local process could
+    # create such a dir in /tmp and plant a file.
+    import tempfile
+    unregistered = Path(tempfile.mkdtemp(prefix="scribetex_"))
+    page = _make_png(unregistered, w=50, h=50, name="p1.png")
+    root = tmp_path / "notes"
+    with pytest.raises(ValueError, match="page_image must be a rendered page"):
+        figures.crop_to_extfiles(str(page), [0, 0, 1, 1], "Bio", "x", root=root)
+
+
 def test_crop_rejects_arbitrary_path(tmp_path):
-    # A page that is neither under the notes root nor a scribetex_* temp dir is
+    # A page that is neither under the notes root nor a registered render dir is
     # refused (confused-deputy guard), even though the file exists.
     outside = _make_png(tmp_path / "elsewhere", w=50, h=50)
     root = tmp_path / "notes"

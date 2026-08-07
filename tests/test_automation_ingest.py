@@ -23,9 +23,10 @@ def _result_line(d):
 def test_filed_moves_to_done(tmp_path):
     cfg = _cfg(tmp_path)
     note = _pdf(tmp_path / "note.pdf")
+    written = tmp_path / "course_main.tex"; written.write_text("doc")
     invoke = lambda p, b: _result_line(
         {"status": "filed", "course": "Bio", "section": "R", "subsection": "S",
-         "date": "2026-08-06", "target": "/x/main.tex", "figures": 0})
+         "date": "2026-08-06", "target": str(written), "figures": 0})
     out = ingest.process_inbox(
         cfg, invoke_fn=invoke, notify_fn=lambda *a: None,
         ready_fn=lambda p, s: True, now_fn=lambda: __import__("datetime").datetime(2026, 8, 6),
@@ -64,9 +65,10 @@ def test_error_leaves_in_place(tmp_path):
 def test_seen_prevents_reprocessing(tmp_path):
     cfg = _cfg(tmp_path)
     _pdf(tmp_path / "once.pdf")
+    written = tmp_path / "c_main.tex"; written.write_text("doc")
     calls = []
     invoke = lambda p, b: calls.append(p) or _result_line(
-        {"status": "filed", "course": "C", "date": "2026-08-06", "target": "/x"})
+        {"status": "filed", "course": "C", "date": "2026-08-06", "target": str(written)})
     ingest.process_inbox(cfg, invoke_fn=invoke, notify_fn=lambda *a: None,
                          ready_fn=lambda p, s: True,
                          now_fn=lambda: __import__("datetime").datetime(2026, 8, 6))
@@ -163,8 +165,9 @@ def test_error_count_cleared_on_success(tmp_path):
     ef = config.error_file(cfg)
     assert state.get_error_count(ef, key) == 1
 
+    written = tmp_path / "ok_main.tex"; written.write_text("doc")
     ok_invoke = lambda p, b: _result_line(
-        {"status": "filed", "course": "C", "date": "2026-08-06", "target": "/x"})
+        {"status": "filed", "course": "C", "date": "2026-08-06", "target": str(written)})
     ingest.process_inbox(cfg, invoke_fn=ok_invoke, notify_fn=lambda *a: None,
                          ready_fn=lambda p, s: True, now_fn=now)
     assert state.get_error_count(ef, key) == 0

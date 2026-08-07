@@ -1,6 +1,10 @@
 """FastMCP server: prepare_note, resolve_placement, write_section."""
 from __future__ import annotations
 
+import os
+import threading
+from pathlib import Path
+
 from fastmcp import FastMCP
 
 from .config import notes_root
@@ -11,6 +15,7 @@ from .sources.base import get_source
 from .scaffold import scaffold_course
 from .writer import insert_note, DuplicateNoteError, MalformedDocumentError
 from .placement import existing_sections, existing_note_labels, note_key
+from .sanitize import escape_title, check_body, UnsafeLatexError
 from . import figures
 
 SERVER_INSTRUCTIONS = r"""
@@ -155,6 +160,24 @@ def _resolve_placement(course_hint: str, section_hint: str,
     }
 
 
+# Per-target-path locks serialize concurrent write_section calls to the SAME
+# main.tex. FastMCP tools can be invoked concurrently; without this the
+# read-modify-write below interleaves and the second writer clobbers the first,
+# silently losing a note. Keyed by the resolved target path string.
+_write_locks: dict[str, threading.Lock] = {}
+_write_locks_guard = threading.Lock()
+
+
+def _lock_for(target: Path) -> threading.Lock:
+    key = str(target.resolve() if target.exists() else target)
+    with _write_locks_guard:
+        lock = _write_locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _write_locks[key] = lock
+        return lock
+
+
 def _write_section(course: str, section_title: str, subsection_title: str,
                    latex_body: str, date: str, course_number: str = "",
                    on_duplicate: str = "warn") -> dict:
@@ -164,29 +187,49 @@ def _write_section(course: str, section_title: str, subsection_title: str,
         return {"written": False, "error": f"unparseable date: {date!r}"}
 
     slug = course_slug(course)
-    target = root / slug / "main.tex"
-    if not target.exists():
-        # Prefer an explicit course_number; else infer a digit-bearing token from
-        # the course name; else fall back to the course name.
-        number = (course_number.strip()
-                  or next((t for t in course.split() if any(c.isdigit() for c in t)),
-                          course))
-        scaffold_course(root, course, number)
-
-    try:
-        new_text, summary = insert_note(
-            target.read_text(encoding="utf-8"), section_title, subsection_title,
-            latex_body, date_iso, on_duplicate,
-        )
-    except DuplicateNoteError as e:
+    if not slug:
         return {"written": False,
-                "error": f"a note for section '{e.section_title}' / subsection "
-                         f"'{e.subsection_title}' on {e.date_iso} already exists; "
-                         f"choose on_duplicate='replace' or 'append', or skip."}
-    except MalformedDocumentError as e:
-        return {"written": False, "error": f"malformed document: {e}"}
+                "error": f"course name {course!r} has no usable filename characters"}
 
-    target.write_text(new_text, encoding="utf-8")
+    # Untrusted note-derived text: escape titles (they sit inside \section{}/
+    # \subsection{} args) and reject compile-time-dangerous body constructs.
+    section_title = escape_title(section_title)
+    subsection_title = escape_title(subsection_title)
+    try:
+        latex_body = check_body(latex_body)
+    except UnsafeLatexError as e:
+        return {"written": False, "error": str(e)}
+
+    target = root / slug / "main.tex"
+    # Serialize per-target so two concurrent writes to this course can't lose a
+    # note; write atomically (temp + os.replace) so a crash mid-write can't
+    # truncate an existing document.
+    with _lock_for(target):
+        if not target.exists():
+            # Prefer an explicit course_number; else infer a digit-bearing token
+            # from the course name; else fall back to the course name.
+            number = (course_number.strip()
+                      or next((t for t in course.split()
+                               if any(c.isdigit() for c in t)), course))
+            scaffold_course(root, course, number)
+
+        try:
+            new_text, summary = insert_note(
+                target.read_text(encoding="utf-8"), section_title, subsection_title,
+                latex_body, date_iso, on_duplicate,
+            )
+        except DuplicateNoteError as e:
+            return {"written": False,
+                    "error": f"a note for section '{e.section_title}' / subsection "
+                             f"'{e.subsection_title}' on {e.date_iso} already exists; "
+                             f"choose on_duplicate='replace' or 'append', or skip."}
+        except MalformedDocumentError as e:
+            return {"written": False, "error": f"malformed document: {e}"}
+
+        tmp = target.with_suffix(".tex.tmp")
+        tmp.write_text(new_text, encoding="utf-8")
+        os.replace(tmp, target)
+
     return {"written": True, "target_path": str(target),
             "diff_summary": summary, "compiled": False}
 

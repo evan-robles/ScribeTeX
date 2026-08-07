@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 from .base import register
+from ..figures import register_render_dir
 
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".heic"}
 
@@ -26,6 +27,7 @@ class FileSource:
             # (e.g. save_figure) can trust the page path is under a known root
             # rather than an arbitrary caller-supplied location.
             staged_dir = Path(tempfile.mkdtemp(prefix="scribetex_"))
+            register_render_dir(staged_dir)
             staged = staged_dir / f"p1{ext}"
             shutil.copy2(path, staged)
             return [staged]
@@ -35,6 +37,7 @@ class FileSource:
             )
         import fitz  # PyMuPDF
         out_dir = Path(tempfile.mkdtemp(prefix="scribetex_"))
+        register_render_dir(out_dir)
         doc = fitz.open(str(path))
         pages: list[Path] = []
         try:

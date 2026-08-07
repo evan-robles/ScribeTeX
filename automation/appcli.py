@@ -158,7 +158,7 @@ def _resolve_parked_note(cfg, path):
 
 def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> dict:
     from scribetex.classify import parse_date
-    from .prompt import build_refile_prompt, parse_result, allowed_tools_args
+    from .prompt import build_refile_prompt, parse_result, allowed_tools_args, new_nonce
     from .envpath import augmented_env
     src, err = _resolve_parked_note(cfg, path)
     if err:
@@ -167,6 +167,7 @@ def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> 
     date_iso = parse_date(date)
     if not date_iso:
         return {"ok": False, "error": f"unusable date: {date!r}"}
+    nonce = new_nonce()
     if invoke_fn is None:
         import subprocess
         def invoke_fn(prompt_text, claude_bin):
@@ -178,13 +179,21 @@ def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> 
                 env=augmented_env())
             return proc.stdout or ""
     try:
-        prompt_text = build_refile_prompt(str(src), course, section, subsection, date_iso)
+        prompt_text = build_refile_prompt(str(src), course, section, subsection,
+                                          date_iso, nonce)
     except ValueError as e:
         return {"ok": False, "error": str(e)}
     stdout = invoke_fn(prompt_text, cfg["claude_bin"])
-    result = parse_result(stdout)
+    result = parse_result(stdout, nonce)
     if result.get("status") != "filed":
         return {"ok": False, "error": result.get("reason", "re-file did not complete")}
+    # Trust "filed" only if the worker actually wrote a target file — an
+    # authenticated result whose target doesn't exist means nothing was written,
+    # so keep the note in NeedsReview rather than moving it to Done (data loss).
+    target = result.get("target")
+    if not target or not Path(target).expanduser().exists():
+        return {"ok": False,
+                "error": f"worker reported filed but target is missing: {target!r}"}
     dest_dir = _config.done_dir(cfg) / date_iso
     dest_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(dest_dir / src.name))
