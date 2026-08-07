@@ -67,6 +67,27 @@ def test_filed_with_target_outside_notesroot_is_not_trusted(tmp_path, monkeypatc
     assert note.exists()  # not moved
 
 
+def test_filed_with_uncaptured_figure_goes_to_needsreview(tmp_path, monkeypatch):
+    # A "filed" result whose pages report a figure present but 0 captured dropped
+    # a drawing -> route to NeedsReview (not Done) so the user can re-file.
+    cfg = _cfg(tmp_path)
+    note = _pdf(tmp_path / "figs.pdf")
+    written = _valid_target(tmp_path, monkeypatch, "Bio")
+    invoke = lambda p, b: _result_line(
+        {"status": "filed", "course": "Bio", "date": "2026-08-06",
+         "target": written,
+         "pages": [{"figures_present": True, "figures_captured": 0}]})
+    out = ingest.process_inbox(cfg, invoke_fn=invoke, notify_fn=lambda *a: None,
+                               ready_fn=lambda p, s: True,
+                               now_fn=lambda: __import__("datetime").datetime(2026, 8, 6))
+    assert all(r["outcome"] != "filed" for r in out)
+    assert not note.exists()
+    nr = tmp_path / "NeedsReview"
+    assert (nr / "figs.pdf").exists()
+    data = json.loads((nr / "figs.pdf.review.json").read_text())
+    assert data["kind"] == "incomplete"
+
+
 def test_ambiguous_moves_to_needsreview_with_sidecar(tmp_path):
     cfg = _cfg(tmp_path)
     note = _pdf(tmp_path / "amb.pdf")

@@ -55,6 +55,53 @@ def test_build_prompt_rejects_unsafe_chars(unsafe_char, example):
         prompt.build_prompt(example)
 
 
+def test_figures_complete_passes_when_all_captured():
+    r = {"status": "filed", "pages": [
+        {"figures_present": True, "figures_captured": 2},
+        {"figures_present": False, "figures_captured": 0},
+    ]}
+    ok, reason = prompt.figures_complete(r)
+    assert ok is True and reason == ""
+
+
+def test_figures_complete_rejects_uncaptured_figure():
+    r = {"status": "filed", "pages": [
+        {"figures_present": False, "figures_captured": 0},
+        {"figures_present": True, "figures_captured": 0},  # dropped a drawing
+    ]}
+    ok, reason = prompt.figures_complete(r)
+    assert ok is False
+    assert "page 2" in reason
+
+
+def test_figures_complete_tolerates_missing_pages():
+    # Older/edge results without a pages array are not blocked by this gate.
+    ok, _ = prompt.figures_complete({"status": "filed"})
+    assert ok is True
+
+
+def test_build_prompt_requires_per_page_figure_accounting():
+    p = prompt.build_prompt("/x/n.pdf")
+    low = p.lower()
+    assert "mandatory figure pass" in low
+    assert "pages" in p and "figures_present" in p and "figures_captured" in p
+
+
+def test_mcp_config_args_registers_scribetex_server(tmp_path):
+    # The worker must be handed the ScribeTeX MCP server explicitly, launched
+    # portably (module + PYTHONPATH), so prepare_note exists without a global
+    # plugin install; --strict-mcp-config keeps unrelated servers out.
+    import json
+    args = prompt.mcp_config_args(repo_root=tmp_path)
+    assert args[0] == "--mcp-config"
+    assert "--strict-mcp-config" in args
+    cfg = json.loads(open(args[1]).read())
+    server = cfg["mcpServers"]["ScribeTeX"]
+    assert server["command"] == "python3"
+    assert server["args"] == ["-m", "scribetex.server"]
+    assert server["env"]["PYTHONPATH"] == str(tmp_path / "src")
+
+
 def test_allowed_tools_args_authorizes_mcp_headless():
     # Headless `claude -p` cannot prompt for permission; the worker must pass a
     # flag that authorizes the ScribeTeX MCP tools or every tool call is blocked.

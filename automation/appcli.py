@@ -158,7 +158,8 @@ def _resolve_parked_note(cfg, path):
 
 def _refile(cfg, path, course, date, *, invoke_fn=None) -> dict:
     from scribetex.classify import parse_date
-    from .prompt import build_refile_prompt, parse_result, allowed_tools_args, new_nonce
+    from .prompt import (build_refile_prompt, parse_result, allowed_tools_args,
+                         mcp_config_args, new_nonce)
     from .envpath import augmented_env
     src, err = _resolve_parked_note(cfg, path)
     if err:
@@ -171,10 +172,12 @@ def _refile(cfg, path, course, date, *, invoke_fn=None) -> dict:
     if invoke_fn is None:
         import subprocess
         def invoke_fn(prompt_text, claude_bin):
-            # Pre-authorize the ScribeTeX MCP tools; headless `claude -p` cannot
-            # prompt for permission, so without this the tool calls are blocked.
+            # Give the worker the ScribeTeX MCP server explicitly (--mcp-config)
+            # so prepare_note/write_section exist and it gets the server context,
+            # and pre-authorize the tools (headless `claude -p` can't prompt).
             proc = subprocess.run(
-                [claude_bin, "-p", prompt_text, *allowed_tools_args()],
+                [claude_bin, "-p", prompt_text,
+                 *mcp_config_args(), *allowed_tools_args()],
                 capture_output=True, text=True, timeout=1800,
                 env=augmented_env())
             return proc.stdout or ""
@@ -195,6 +198,12 @@ def _refile(cfg, path, course, date, *, invoke_fn=None) -> dict:
         return {"ok": False,
                 "error": f"worker reported filed but target is not a valid "
                          f"course main.tex under the notes root: {target!r}"}
+    # Reject a lossy transcription that dropped a figure; the note stays parked
+    # so the user can re-file (which replaces the block via date+filename dedup).
+    from .prompt import figures_complete
+    ok, reason = figures_complete(result)
+    if not ok:
+        return {"ok": False, "error": reason}
     dest_dir = _config.done_dir(cfg) / date_iso
     dest_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(dest_dir / src.name))

@@ -10,7 +10,8 @@ from pathlib import Path
 
 from . import config as _config
 from . import readiness, state
-from .prompt import build_prompt, parse_result, allowed_tools_args, new_nonce
+from .prompt import (build_prompt, parse_result, allowed_tools_args,
+                     mcp_config_args, new_nonce, figures_complete)
 
 # Cap on consecutive error outcomes for the same file identity before it is
 # dead-lettered to NeedsReview/ instead of being retried forever.
@@ -32,7 +33,8 @@ def invoke_claude(note_path, claude_bin, run_fn=None, timeout=1800):
         # `claude` in ~/.local/bin / Homebrew when invoking it.
         from .envpath import augmented_env
         proc = run_fn(
-            [claude_bin, "-p", build_prompt(note_path, nonce), *allowed_tools_args()],
+            [claude_bin, "-p", build_prompt(note_path, nonce),
+             *mcp_config_args(), *allowed_tools_args()],
             capture_output=True, text=True, timeout=timeout,
             env=augmented_env(),
         )
@@ -107,6 +109,17 @@ def route_file(note_path, result, cfg, now_fn=None) -> str:
         # to an unrelated path) so we don't move a note to Done on a false claim.
         if not _valid_written_target(result.get("target")):
             return "error"
+        # Reject a lossy transcription: if any page had a figure the worker did
+        # not capture, surface it for review (re-file will replace the block via
+        # the date+filename dedup key) rather than accepting a note that dropped
+        # a drawing.
+        ok, reason = figures_complete(result)
+        if not ok:
+            nr = _config.needs_review_dir(cfg)
+            nr.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(note), str(nr / note.name))
+            _write_review_sidecar(nr, note.name, reason, "incomplete", result)
+            return "ambiguous"
         day = now_fn().strftime("%Y-%m-%d")
         dest_dir = _config.done_dir(cfg) / day
         dest_dir.mkdir(parents=True, exist_ok=True)
