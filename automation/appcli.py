@@ -156,7 +156,7 @@ def _resolve_parked_note(cfg, path):
     return real, None
 
 
-def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> dict:
+def _refile(cfg, path, course, date, *, invoke_fn=None) -> dict:
     from scribetex.classify import parse_date
     from .prompt import build_refile_prompt, parse_result, allowed_tools_args, new_nonce
     from .envpath import augmented_env
@@ -179,8 +179,7 @@ def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> 
                 env=augmented_env())
             return proc.stdout or ""
     try:
-        prompt_text = build_refile_prompt(str(src), course, section, subsection,
-                                          date_iso, nonce)
+        prompt_text = build_refile_prompt(str(src), course, date_iso, nonce)
     except ValueError as e:
         return {"ok": False, "error": str(e)}
     stdout = invoke_fn(prompt_text, cfg["claude_bin"])
@@ -268,12 +267,10 @@ def main(argv=None) -> int:
     sub.add_parser("install")
     sub.add_parser("uninstall")
     rp = sub.add_parser("refile")
+    # Only course + date are user-supplied placement; the note's section
+    # structure is authored by the LLM from the note's content.
     for a in ("--path", "--course", "--date"):
         rp.add_argument(a, required=True)
-    # Section/subsection are optional: blank means the agent decides them from
-    # the note content (course + date are the only user-required placement).
-    rp.add_argument("--section", default="")
-    rp.add_argument("--subsection", default="")
     dp = sub.add_parser("discard"); dp.add_argument("--path", required=True)
     args = ap.parse_args(argv)
 
@@ -321,8 +318,7 @@ def _dispatch(args) -> int:
         return _emit({"ok": True, "watcher_running": False})
     if args.cmd == "refile":
         cfg = _load()
-        return _emit(_refile(cfg, args.path, args.course, args.section,
-                             args.subsection, args.date))
+        return _emit(_refile(cfg, args.path, args.course, args.date))
     if args.cmd == "discard":
         cfg = _load()
         return _emit(_discard(cfg, args.path))

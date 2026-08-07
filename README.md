@@ -1,10 +1,13 @@
 # ScribeTeX
 
 A FastMCP server that files agent-transcribed handwritten notes into per-course
-LaTeX documents. Notes are organized **by topic**: content lives under top-level
-`\section` headings (e.g. "Characterization Techniques") and each note becomes
-one or more `\subsection` under a chosen section. Each course document uses a
-fixed template (full title page + table of contents + course preamble).
+LaTeX documents. The transcribing agent builds each note's heading structure from
+its content: a single note is transcribed into LaTeX with its own `\section`/
+`\subsection` headings reflecting its real topics — one note may span **several**
+sections (e.g. a class covering area and volume yields a `\section` for each). The
+server does not impose a section; it appends the note's block into the course
+document under a hidden date+filename label. Each course document uses a fixed
+template (full title page + table of contents + course preamble).
 
 Input can be any PDF or image export from an iPad app — **GoodNotes**, Notability,
 etc. (`source="file"`, or the `source="goodnotes"` alias).
@@ -24,19 +27,18 @@ pip install -e ".[dev]"
 - `prepare_note(source="file", ref)` — render a note export (PDF/PNG/JPG/HEIC)
   to page images and return a transcription brief + known courses.
   `source="goodnotes"` is an alias for GoodNotes exports.
-- `resolve_placement(course_hint, section_hint, subsection_hint, date)` — map to
-  a course document and topic section, reporting new-vs-existing and any
-  duplicate.
-- `write_section(course, section_title, subsection_title, latex_body, date,
-  course_number="", on_duplicate="warn")` — scaffold the course if new and add
-  the note as a subsection under the given topic section.
+- `resolve_placement(course_hint, date, source_name)` — map to a course document
+  and date, reporting new-vs-existing and any duplicate.
+- `write_section(course, latex_body, date, source_name="", course_number="",
+  on_duplicate="warn")` — scaffold the course if new and append the note. The
+  `latex_body` carries the agent's own `\section`/`\subsection` headings.
 - `save_figure(course, page_image, bbox, name)` — crop a region of a rendered
   note page into the course's `ExtFiles/` and embed it with `\includegraphics`.
   This is the default for any drawing/diagram/sketch; TikZ/pgfplots is reserved
   for genuine data charts and `tabular` for data tables (see Figures below).
 
-Each note's subsection carries a hidden `\label{note:YYYY-MM-DD}` used only for
-duplicate detection.
+Each note carries a hidden `\label{note:DATE:filename-slug}` used only for
+duplicate detection (re-filing the same source file replaces its prior block).
 
 ## Install as a Claude Code plugin (recommended)
 
@@ -126,13 +128,13 @@ pdflatex main && biber main && pdflatex main && pdflatex main
 ## Workflow
 
 1. Drop a handwritten note export path into chat: *"process ~/Downloads/chem-nmr.pdf"*.
-2. The agent calls `prepare_note`, reads the page images, transcribes to LaTeX,
-   and decides a course, a top-level section (theme), a subsection title, and the
-   date.
-3. The agent calls `resolve_placement` and shows you the detected course, the
-   chosen section (new vs existing), the date, and any duplicate — you confirm.
-4. The agent calls `write_section`; the note is filed into the course's
-   `main.tex` as a `\subsection` under the chosen topic `\section`.
+2. The agent calls `prepare_note`, reads the page images, and transcribes to
+   LaTeX — building the note's own `\section`/`\subsection` structure from its
+   content — then decides the course and the date.
+3. The agent calls `resolve_placement` and shows you the detected course
+   (new vs existing), the date, and any duplicate — you confirm.
+4. The agent calls `write_section`; the note's structured block is appended into
+   the course's `main.tex` under a hidden date+filename label.
 
 ## Automatic ingest (watch a folder)
 

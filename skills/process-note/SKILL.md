@@ -27,22 +27,25 @@ images; placement and file writing are deterministic.
    report it and stop.
 
 2. **Transcribe (you).** Read EVERY page image and transcribe to LaTeX, obeying
-   the `brief`: body only (no preamble, no `\section`/`\subsection`/`\label` —
-   the server adds those), `\subsection` structure per topic, `$...$`/`align`
-   for math, `\ce{...}` for chemistry, only the listed packages/macros.
-   Transcribe faithfully; never invent content. Render hand-drawn diagrams you
-   cannot reproduce as faithful prose/equations, and tell the user which ones.
-   Also decide: the **course**, a top-level **section** title (the theme), a
-   concise **subsection** title, and the **date**. Ask the user if any is
+   the `brief`. YOU build the heading structure from the note's content: use
+   `\section{...}` for each major topic and `\subsection{...}` beneath — a single
+   note may span SEVERAL sections (e.g. area and volume become a section each).
+   No preamble/`\documentclass`/`\label` (the server adds the label). `$...$`/
+   `align` for math, `\ce{...}` for chemistry, only the listed packages/macros.
+   Transcribe faithfully; never invent content. For any drawing/diagram, crop the
+   original via `save_figure` by default (TikZ only for genuine data charts;
+   never redraw a sketch from imagination) — tell the user which path each took.
+   Also decide only the **course** and the **date**. Ask the user if either is
    ambiguous.
 
 3. **Resolve + confirm.** Call the `resolve_placement` MCP tool with the course,
-   section, and date. Show the user the resolved course (new/existing), the
-   chosen section (new/existing), the date, and any duplicate — get confirmation.
+   date, and source filename. Show the user the resolved course (new/existing),
+   the date, and any duplicate — get confirmation.
 
 4. **Write.** Call the `write_section` MCP tool (course, course_number,
-   section_title, subsection_title, latex_body, date). Report the target path and
-   what was described vs. reproduced.
+   latex_body, date, source_name). The `latex_body` carries your own
+   `\section`/`\subsection` headings. Report the target path and what was cropped
+   vs. reproduced.
 
 ## Examples
 

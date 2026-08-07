@@ -1,6 +1,6 @@
 import fitz
 from scribetex import server
-from scribetex.placement import existing_sections, existing_note_labels
+from scribetex.placement import existing_note_labels
 
 
 def test_full_flow(tmp_path, monkeypatch):
@@ -11,30 +11,30 @@ def test_full_flow(tmp_path, monkeypatch):
     prep = server._prepare_note("file", str(pdf))
     assert prep["page_images"]
 
-    # 2. agent "transcribes" + infers course/section/date -> resolve
-    res = server._resolve_placement("Organic Chemistry", "Characterization", "NMR",
-                                    "Oct 3 2025")
+    # 2. agent "transcribes" + infers course/date -> resolve
+    res = server._resolve_placement("Organic Chemistry", "Oct 3 2025", "chem.pdf")
     assert res["course_status"] == "new"
     assert res["date_iso"] == "2025-10-03"
 
-    # 3. write after user confirms
-    w = server._write_section(res["course"], res["section_title"], "NMR",
-                              r"NMR is an analytical technique...", res["date_iso"])
+    # 3. write after user confirms — the body carries the LLM's own headings,
+    # and a single note may span SEVERAL sections.
+    body1 = ("\\section{Characterization}\n\\subsection{NMR}\nNMR is...\n"
+             "\\section{Reaction Mechanisms}\n\\subsection{Addition}\nMarkovnikov...")
+    w = server._write_section(res["course"], body1, res["date_iso"],
+                              source_name="chem.pdf")
     assert w["written"] is True
 
-    # 4. a second note under a NEW section is appended at the end
-    server._write_section("Organic Chemistry", "Reaction Mechanisms",
-                          "Electrophilic Addition", "Markovnikov...", "2025-10-05")
     main_tex = (tmp_path / "Organic-Chemistry" / "main.tex").read_text()
-    assert existing_sections(main_tex) == ["Characterization", "Reaction Mechanisms"]
-    assert existing_note_labels(main_tex) == [
-        "2025-10-03:characterization:nmr",
-        "2025-10-05:reaction-mechanisms:electrophilic-addition",
-    ]
+    # both sections from the one note are present
+    assert r"\section{Characterization}" in main_tex
+    assert r"\section{Reaction Mechanisms}" in main_tex
 
-    # 5. a third note under an EXISTING section appends within it
-    server._write_section("Organic Chemistry", "Characterization",
-                          "Chromatography", "TLC and GC...", "2025-10-04")
+    # 4. a second, different note file on another date is appended
+    server._write_section("Organic Chemistry", "\\section{Kinetics}\nrate laws...",
+                          "2025-10-05", source_name="lecture2.pdf")
     main_tex = (tmp_path / "Organic-Chemistry" / "main.tex").read_text()
-    assert existing_sections(main_tex) == ["Characterization", "Reaction Mechanisms"]
-    assert r"\subsection{Chromatography}" in main_tex
+    assert existing_note_labels(main_tex) == [
+        "2025-10-03:chem-pdf",
+        "2025-10-05:lecture2-pdf",
+    ]
+    assert r"\section{Kinetics}" in main_tex

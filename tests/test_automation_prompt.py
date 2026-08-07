@@ -20,7 +20,7 @@ def test_prompts_forbid_redrawing_diagrams():
     # the worker embeds cropped originals instead of inventing TikZ diagrams.
     for text in (
         prompt.build_prompt("/notes/inbox/n.pdf"),
-        prompt.build_refile_prompt("/notes/inbox/n.pdf", "C", "S", "sub", "2026-08-06"),
+        prompt.build_refile_prompt("/notes/inbox/n.pdf", "C", "2026-08-06"),
     ):
         low = text.lower()
         assert "save_figure" in low

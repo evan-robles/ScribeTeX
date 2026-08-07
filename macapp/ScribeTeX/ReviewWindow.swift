@@ -119,8 +119,6 @@ private struct ReviewItemForm: View {
 
     @State private var courseSelection: String = ""
     @State private var newCourse: String = ""
-    @State private var section: String = ""
-    @State private var subsection: String = ""
     @State private var date: Date = Date()
     /// Set once the user edits any field, so a late-arriving course list can't
     /// clobber their input when we re-run prefill.
@@ -164,16 +162,15 @@ private struct ReviewItemForm: View {
                 }
             }
 
-            labeledField("Section", text: $section,
-                         placeholder: "blank → agent picks from the note")
-            labeledField("Subsection", text: $subsection,
-                         placeholder: "blank → agent picks from the note")
-
             HStack {
                 Text("Date").frame(width: 90, alignment: .leading)
                 DatePicker("Date", selection: $date, displayedComponents: .date)
                     .labelsHidden()
             }
+            Text("The note's sections are generated from its content during "
+                 + "transcription — you only set the course and date.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
             HStack {
                 Button {
@@ -207,21 +204,11 @@ private struct ReviewItemForm: View {
         // are excluded via the `prefilling` guard).
         .onChange(of: courseSelection) { _ in markEdited() }
         .onChange(of: newCourse) { _ in markEdited() }
-        .onChange(of: section) { _ in markEdited() }
-        .onChange(of: subsection) { _ in markEdited() }
         .onChange(of: date) { _ in markEdited() }
     }
 
     private func markEdited() {
         if !prefilling { userEdited = true }
-    }
-
-    private func labeledField(_ label: String, text: Binding<String>, placeholder: String) -> some View {
-        HStack {
-            Text(label).frame(width: 90, alignment: .leading)
-            TextField(placeholder, text: text)
-                .textFieldStyle(.roundedBorder)
-        }
     }
 
     // MARK: - Behavior
@@ -254,8 +241,6 @@ private struct ReviewItemForm: View {
         } else {
             courseSelection = Self.newCourseTag
         }
-        section = item.section ?? ""
-        subsection = item.subsection ?? ""
         date = Self.parseDate(item.date) ?? Date()
         prefilledWithCourses = !courses.isEmpty
     }
@@ -265,12 +250,9 @@ private struct ReviewItemForm: View {
         // main-actor-isolated bindings inside the detached task.
         let path = item.path
         let course = resolvedCourse
-        let sec = section.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sub = subsection.trimmingCharacters(in: .whitespacesAndNewlines)
         let dateString = Self.format(date)
         model.perform {
-            _ = try Bridge.refile(path: path, course: course,
-                                  section: sec, subsection: sub, date: dateString)
+            _ = try Bridge.refile(path: path, course: course, date: dateString)
         }
     }
 

@@ -187,14 +187,13 @@ enum Bridge {
         try JSONDecoder().decode(CoursesList.self, from: run(["known-courses"])).courses
     }
 
-    /// Re-file a parked note with a user-corrected course/section/subsection/
-    /// date. This re-transcribes the note (spends Claude tokens), so it is
-    /// slow — run it inside `AppModel.perform`.
+    /// Re-file a parked note with a user-confirmed course + date. The note's
+    /// section structure is authored by the LLM from its content. This
+    /// re-transcribes the note (spends Claude tokens), so it is slow — run it
+    /// inside `AppModel.perform`.
     @discardableResult
-    static func refile(path: String, course: String, section: String,
-                       subsection: String, date: String) throws -> ActionResult {
-        try action(["refile", "--path", path, "--course", course,
-                    "--section", section, "--subsection", subsection, "--date", date],
+    static func refile(path: String, course: String, date: String) throws -> ActionResult {
+        try action(["refile", "--path", path, "--course", course, "--date", date],
                    timeout: slowTimeout)  // re-transcribes via Claude (~minutes)
     }
 
