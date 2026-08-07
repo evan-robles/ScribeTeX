@@ -77,10 +77,10 @@ struct MenuContent: View {
                             model.perform("Opening \(course) PDF") { _ = try Bridge.openPDF(course: course) }
                         }
                         Divider()
-                        Button("Generate study guide") {
+                        Button("Generate study guide (in the document)") {
                             model.perform("Study guide: \(course)") { _ = try Bridge.studyGuide(course: course) }
                         }
-                        Button("Export flashcards (Anki TSV)") {
+                        Button("Export flashcards → Finder (Anki TSV)") {
                             model.perform("Flashcards: \(course)") { _ = try Bridge.flashcards(course: course) }
                         }
                         Button("Verify (flag likely errors)") {

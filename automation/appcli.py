@@ -409,11 +409,34 @@ def _run_course_worker(cfg, course, prompt_builder, ok_status, *, invoke_fn=None
     return {"ok": True, "result": result}
 
 
-def _study_guide(cfg, course, kind="guide", *, invoke_fn=None) -> dict:
+def _reveal(path) -> None:
+    """Reveal a file in Finder (selects it), best-effort."""
+    if not path:
+        return
+    p = Path(path)
+    if not p.exists():
+        return
+    try:
+        import subprocess
+        subprocess.run(["open", "-R", str(p)], check=False)
+    except Exception:
+        pass
+
+
+def _study_guide(cfg, course, kind="guide", *, invoke_fn=None, reveal=True) -> dict:
     from .prompt import build_studyguide_prompt
-    return _run_course_worker(
+    res = _run_course_worker(
         cfg, course, lambda n: build_studyguide_prompt(course, kind, n),
         "study_aid", invoke_fn=invoke_fn)
+    # Surface the output so the user can find it: flashcards.tsv (to import into
+    # Anki) is revealed in Finder; the study guide lives inside main.tex, so we
+    # reveal that. The written path is echoed in the result either way.
+    if res.get("ok"):
+        path = (res.get("result") or {}).get("path")
+        res["path"] = path
+        if reveal:
+            _reveal(path)
+    return res
 
 
 def _verify(cfg, course, note_key="", *, invoke_fn=None) -> dict:

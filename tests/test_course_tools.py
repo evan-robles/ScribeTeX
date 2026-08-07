@@ -53,10 +53,12 @@ def test_caption_prompt_covers_captions_and_dupes():
 def test_study_guide_runs_worker(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path, monkeypatch)
     _course(tmp_path, "Bio")
-    r = appcli._study_guide(cfg, "Bio", kind="guide",
+    r = appcli._study_guide(cfg, "Bio", kind="guide", reveal=False,
                             invoke_fn=_worker({"status": "study_aid", "course": "Bio",
                                                "kind": "guide", "path": "/x/main.tex"}))
     assert r["ok"] is True and r["result"]["kind"] == "guide"
+    # The written path is surfaced at the top level so the app can reveal it.
+    assert r["path"] == "/x/main.tex"
 
 
 def test_verify_runs_worker(tmp_path, monkeypatch):
