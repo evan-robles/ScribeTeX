@@ -202,6 +202,24 @@ enum Bridge {
     static func discard(path: String) throws -> ActionResult {
         try action(["discard", "--path", path])
     }
+
+    /// Compile a course to PDF (no auto-fix). Runs the TeX toolchain.
+    @discardableResult
+    static func compile(course: String) throws -> ActionResult {
+        try action(["compile", "--course", course], timeout: 300)
+    }
+
+    /// Compile with surgical LLM error-recovery (may spend Claude tokens).
+    @discardableResult
+    static func build(course: String) throws -> ActionResult {
+        try action(["build", "--course", course], timeout: slowTimeout)
+    }
+
+    /// Open the course's compiled PDF (if one exists).
+    @discardableResult
+    static func openPDF(course: String) throws -> ActionResult {
+        try action(["open-pdf", "--course", course], timeout: 30)
+    }
 }
 
 enum BridgeError: LocalizedError {

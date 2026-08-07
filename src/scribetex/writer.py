@@ -53,6 +53,30 @@ def _replace_note(main_tex: str, body: str, date_iso: str, source_name: str) -> 
     return main_tex[:label_pos] + new_block + main_tex[block_end:]
 
 
+class NoteNotFoundError(Exception):
+    pass
+
+
+def replace_note_body_by_key(main_tex: str, key: str, new_body: str) -> str:
+    """Replace ONLY the body of the note block whose label is ``note:<key>``.
+
+    Used by the compile error-recovery pass to surgically fix one note (found by
+    its date+filename key) without touching any other block. Preserves the label
+    line and the BODY markers; swaps only the content between them. Raises
+    NoteNotFoundError if no block carries that key.
+    """
+    _require_markers(main_tex)
+    label = f"\\label{{note:{key}}}"
+    label_pos = main_tex.find(label)
+    if label_pos == -1:
+        raise NoteNotFoundError(key)
+    begin = main_tex.index(BODY_BEGIN, label_pos) + len(BODY_BEGIN)
+    if main_tex[begin] == "\n":
+        begin += 1
+    end = main_tex.index(BODY_END, begin)
+    return main_tex[:begin] + new_body.rstrip("\n") + "\n" + main_tex[end:]
+
+
 def insert_note(main_tex: str, body: str, date_iso: str, source_name: str,
                 on_duplicate: str = "warn") -> tuple[str, str]:
     """Insert a transcribed note block. Returns (new_main_tex, diff_summary)."""

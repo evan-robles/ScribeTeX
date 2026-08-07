@@ -227,6 +227,78 @@ def _discard(cfg, path) -> dict:
     return {"ok": True, "discarded": src.name}
 
 
+def _course_main_tex(course):
+    from scribetex.config import notes_root
+    from scribetex.classify import course_slug
+    slug = course_slug(course)
+    if not slug:
+        return None
+    return notes_root() / slug / "main.tex"
+
+
+def _compile(cfg, course) -> dict:
+    """Plain compile (no LLM): run the toolchain, return structured result."""
+    from scribetex.compile import compile_course
+    target = _course_main_tex(course)
+    if target is None:
+        return {"ok": False, "error": f"course {course!r} has no usable slug"}
+    res = compile_course(target)
+    return {"ok": bool(res.get("compiled")), **res}
+
+
+def _open_pdf(cfg, course) -> dict:
+    """Return the course PDF path (and open it) if it exists."""
+    import subprocess
+    target = _course_main_tex(course)
+    if target is None:
+        return {"ok": False, "error": f"course {course!r} has no usable slug"}
+    pdf = target.with_suffix(".pdf")
+    if not pdf.exists():
+        return {"ok": False, "error": f"no compiled PDF yet for {course}"}
+    try:
+        subprocess.run(["open", str(pdf)], check=False,
+                       env=_ingest.augmented_env() if hasattr(_ingest, "augmented_env") else None)
+    except Exception:
+        pass
+    return {"ok": True, "pdf": str(pdf)}
+
+
+def _build(cfg, course, *, invoke_fn=None) -> dict:
+    """Compile with surgical LLM error-recovery: compile, and if it fails let the
+    worker patch only the offending note blocks and recompile (bounded)."""
+    from .prompt import (build_compile_prompt, parse_result, allowed_tools_args,
+                         mcp_config_args, new_nonce)
+    from .envpath import augmented_env
+    from scribetex.compile import compile_course, toolchain_missing
+    target = _course_main_tex(course)
+    if target is None or not target.exists():
+        return {"ok": False, "error": f"course document not found for {course!r}"}
+    missing = toolchain_missing()
+    if missing:
+        return {"ok": False, "error": f"'{missing}' not on PATH; install MacTeX/TeX Live"}
+    # Fast path: if it already compiles, skip the (expensive) LLM worker.
+    first = compile_course(target)
+    if first.get("compiled"):
+        return {"ok": True, "compiled": True, "pdf": first.get("pdf"), "rounds": 0}
+    nonce = new_nonce()
+    if invoke_fn is None:
+        import subprocess
+        def invoke_fn(prompt_text, claude_bin):
+            proc = subprocess.run(
+                [claude_bin, "-p", prompt_text,
+                 *mcp_config_args(), *allowed_tools_args()],
+                capture_output=True, text=True, timeout=1800, env=augmented_env())
+            return proc.stdout or ""
+    stdout = invoke_fn(build_compile_prompt(course, nonce), cfg["claude_bin"])
+    result = parse_result(stdout, nonce)
+    if result.get("status") == "compiled":
+        return {"ok": True, "compiled": True, "pdf": result.get("pdf"),
+                "rounds": result.get("rounds"), "patched": result.get("patched", [])}
+    return {"ok": False, "compiled": False,
+            "error": "could not auto-fix compile errors",
+            "errors": result.get("errors", []), "rounds": result.get("rounds")}
+
+
 def _emit(obj) -> int:
     print(json.dumps(obj))
     return 0
@@ -281,6 +353,9 @@ def main(argv=None) -> int:
     for a in ("--path", "--course", "--date"):
         rp.add_argument(a, required=True)
     dp = sub.add_parser("discard"); dp.add_argument("--path", required=True)
+    cp = sub.add_parser("compile"); cp.add_argument("--course", required=True)
+    bp = sub.add_parser("build"); bp.add_argument("--course", required=True)
+    op = sub.add_parser("open-pdf"); op.add_argument("--course", required=True)
     args = ap.parse_args(argv)
 
     try:
@@ -331,6 +406,15 @@ def _dispatch(args) -> int:
     if args.cmd == "discard":
         cfg = _load()
         return _emit(_discard(cfg, args.path))
+    if args.cmd == "compile":
+        cfg = _load()
+        return _emit(_compile(cfg, args.course))
+    if args.cmd == "build":
+        cfg = _load()
+        return _emit(_build(cfg, args.course))
+    if args.cmd == "open-pdf":
+        cfg = _load()
+        return _emit(_open_pdf(cfg, args.course))
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 

@@ -77,6 +77,28 @@ def _write_review_sidecar(nr_dir, note_name, reason, kind, result) -> Path:
     return sidecar
 
 
+def _auto_compile(course, notify_fn) -> None:
+    """Opt-in: compile the just-filed note's course (plain, no LLM) and notify on
+    failure so a broken transcription surfaces immediately. Best-effort — never
+    raises into the ingest loop."""
+    if not course:
+        return
+    try:
+        from scribetex.compile import compile_course, toolchain_missing
+        from scribetex.config import notes_root
+        from scribetex.classify import course_slug
+        if toolchain_missing():
+            return  # no TeX installed; silently skip
+        target = notes_root() / course_slug(course) / "main.tex"
+        res = compile_course(target)
+        if not res.get("compiled"):
+            n = len(res.get("errors", []))
+            notify_fn("ScribeTeX compile failed",
+                      f"{course}: {n} LaTeX error(s) after filing — needs a fix")
+    except Exception:
+        pass
+
+
 def _valid_written_target(target) -> bool:
     """True iff `target` is an existing main.tex inside the notes root.
 
@@ -201,6 +223,8 @@ def process_inbox(cfg, invoke_fn=None, notify_fn=None, ready_fn=None,
                 state.mark_seen(sf, key)
                 state.clear_error_count(ef, key)
                 _notify_outcome(notify_fn, note, result, outcome)
+                if outcome == "filed" and cfg.get("auto_compile"):
+                    _auto_compile(result.get("course"), notify_fn)
             else:  # error
                 attempts = state.bump_error_count(ef, key)
                 if attempts >= MAX_ERROR_ATTEMPTS:

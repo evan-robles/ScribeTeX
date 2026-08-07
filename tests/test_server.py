@@ -142,6 +142,38 @@ def test_write_rejects_empty_course_slug(root):
     assert "usable filename" in r["error"]
 
 
+def test_patch_note_region_fixes_one_note(root):
+    server._write_section("Bio", "\\section{A}\nbroken $x", "2026-08-06",
+                          source_name="one.pdf")
+    server._write_section("Bio", "\\section{B}\nkeep", "2026-08-06",
+                          source_name="two.pdf", on_duplicate="append")
+    r = server._patch_note_region("Bio", "2026-08-06:one-pdf",
+                                  "\\section{A}\nfixed $x$")
+    assert r["patched"] is True
+    main_tex = (root / "Bio" / "main.tex").read_text()
+    assert "fixed $x$" in main_tex and "broken $x" not in main_tex
+    assert "keep" in main_tex  # other note untouched
+
+
+def test_patch_note_region_unknown_key(root):
+    server._write_section("Bio", "\\section{A}\nx", "2026-08-06", source_name="a.pdf")
+    r = server._patch_note_region("Bio", "2099-01-01:missing", "\\section{A}\ny")
+    assert r["patched"] is False and "no note block" in r["error"]
+
+
+def test_patch_note_region_rejects_dangerous_body(root):
+    server._write_section("Bio", "\\section{A}\nx", "2026-08-06", source_name="a.pdf")
+    r = server._patch_note_region("Bio", "2026-08-06:a-pdf",
+                                  "\\input{/etc/passwd}")
+    assert r["patched"] is False and "disallowed" in r["error"].lower()
+
+
+def test_compile_course_missing_toolchain_or_file(root):
+    # No course written yet -> main.tex missing -> clean error, not a crash.
+    r = server._compile_course("Nonexistent Course")
+    assert r["compiled"] is False and "error" in r
+
+
 def test_concurrent_writes_do_not_lose_notes(root):
     # Two threads filing DIFFERENT source files into the SAME course must both
     # land — the per-target lock + atomic replace prevents last-writer-wins loss.

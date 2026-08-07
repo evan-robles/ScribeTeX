@@ -13,9 +13,11 @@ from .discovery import known_courses
 from .transcription_brief import build_brief
 from .sources.base import get_source
 from .scaffold import scaffold_course
-from .writer import insert_note, DuplicateNoteError, MalformedDocumentError
+from .writer import (insert_note, replace_note_body_by_key, DuplicateNoteError,
+                     MalformedDocumentError, NoteNotFoundError)
 from .placement import existing_note_labels, note_key
 from .sanitize import check_body, UnsafeLatexError
+from .compile import compile_course as _compile
 from . import figures
 
 SERVER_INSTRUCTIONS = r"""
@@ -254,6 +256,51 @@ def _save_figure(course: str, page_image: str, bbox, name: str) -> dict:
     return res
 
 
+def _compile_course(course: str) -> dict:
+    """Compile a course's main.tex to PDF, returning structured errors on failure.
+
+    This is the one place the server compiles LaTeX (otherwise write-only). Errors
+    come back parsed (message/line/context) so a recovery pass can map each to the
+    note block that caused it."""
+    slug = course_slug(course)
+    if not slug:
+        return {"compiled": False,
+                "error": f"course name {course!r} has no usable filename characters"}
+    target = notes_root() / slug / "main.tex"
+    return _compile(target)
+
+
+def _patch_note_region(course: str, note_key_str: str, new_body: str) -> dict:
+    """Surgically replace ONE note block's body (found by its date+filename key).
+
+    Used by the compile error-recovery pass to fix only the offending note. The
+    new body is sanitized (check_body) like any write, and the file is locked +
+    atomically replaced."""
+    slug = course_slug(course)
+    if not slug:
+        return {"patched": False, "error": f"course {course!r} has no usable slug"}
+    target = notes_root() / slug / "main.tex"
+    if not target.exists():
+        return {"patched": False, "error": f"course document not found: {target}"}
+    try:
+        new_body = check_body(new_body)
+    except UnsafeLatexError as e:
+        return {"patched": False, "error": str(e)}
+    with _lock_for(target):
+        try:
+            new_text = replace_note_body_by_key(
+                target.read_text(encoding="utf-8"), note_key_str, new_body)
+        except NoteNotFoundError:
+            return {"patched": False,
+                    "error": f"no note block with key {note_key_str!r} in {course}"}
+        except MalformedDocumentError as e:
+            return {"patched": False, "error": f"malformed document: {e}"}
+        tmp = target.with_suffix(".tex.tmp")
+        tmp.write_text(new_text, encoding="utf-8")
+        os.replace(tmp, target)
+    return {"patched": True, "target_path": str(target), "note_key": note_key_str}
+
+
 @mcp.tool
 def prepare_note(ref: str, source: str = "file") -> dict:
     """Render a handwritten note export to page images and return the
@@ -348,6 +395,40 @@ def save_figure(course: str, page_image: str, bbox: list[float], name: str) -> d
     snippet)} or {"saved": false, "error": ...}. \\graphicspath already points at
     ExtFiles/, so \\includegraphics{<name>} resolves without a path prefix."""
     return _save_figure(course, page_image, bbox, name)
+
+
+@mcp.tool
+def compile_course(course: str) -> dict:
+    """Compile a course's main.tex to PDF (pdflatex → biber → pdflatex ×2).
+
+    This is the ONE place the server compiles LaTeX; it is otherwise write-only.
+    Requires a local TeX toolchain (MacTeX / TeX Live).
+
+    Args:
+        course: the course NAME (resolved to <notes_root>/<slug>/main.tex).
+    Returns {"compiled": true, pdf, exists} on success, or {"compiled": false,
+    failed_step, errors: [{message, line, context}], log_tail} on a LaTeX
+    failure — the structured `errors` map each failure to the .tex line so it can
+    be fixed. Returns {"compiled": false, "error": ...} if TeX or the file is
+    missing."""
+    return _compile_course(course)
+
+
+@mcp.tool
+def patch_note_region(course: str, note_key: str, new_body: str) -> dict:
+    """Replace ONLY the body of one filed note (found by its date+filename key),
+    leaving every other note untouched. Use to fix a single note that broke the
+    build or was transcribed wrong — not to rewrite the document.
+
+    Args:
+        course: the course NAME.
+        note_key: the note's composite key "DATE:filename-slug" (the text after
+            `note:` in its \\label; from compile_course errors or the document).
+        new_body: the corrected LaTeX body for that note (its own
+            \\section/\\subsection headings, no \\label — that is preserved).
+    Returns {"patched": true, target_path, note_key} or {"patched": false,
+    "error": ...} (unknown key, unsafe body, or malformed document)."""
+    return _patch_note_region(course, note_key, new_body)
 
 
 def main() -> None:

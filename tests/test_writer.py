@@ -59,6 +59,22 @@ def test_different_files_same_date_coexist():
     ]
 
 
+def test_replace_note_body_by_key_swaps_only_that_body():
+    from scribetex.writer import replace_note_body_by_key, NoteNotFoundError
+    out, _ = insert_note(BASE, "\\section{A}\nold body", "2026-08-06", "one.pdf")
+    out, _ = insert_note(out, "\\section{B}\nkeep", "2026-08-06", "two.pdf")
+    patched = replace_note_body_by_key(out, "2026-08-06:one-pdf",
+                                       "\\section{A}\nNEW body")
+    assert "NEW body" in patched
+    assert "old body" not in patched
+    assert "keep" in patched            # other note untouched
+    # label + markers preserved
+    assert "\\label{note:2026-08-06:one-pdf}" in patched
+    import pytest as _p
+    with _p.raises(NoteNotFoundError):
+        replace_note_body_by_key(out, "2099-01-01:missing", "x")
+
+
 def test_malformed_missing_markers_raises():
     with pytest.raises(MalformedDocumentError):
         insert_note("\\begin{document}\n\\end{document}\n", "x", "2025-10-03",

@@ -38,12 +38,50 @@ struct MenuContent: View {
 
             inboxRow
             processRow
+            compileRow
             Divider()
             footer
         }
         .padding(12)
         .frame(width: 320)
         .onDrop(of: [.fileURL], isTargeted: nil, perform: handleDrop)
+        .onAppear { loadCourses() }
+    }
+
+    // MARK: - Compile
+
+    @State private var courses: [String] = []
+
+    private func loadCourses() {
+        guard !model.needsRepo else { return }
+        Task.detached(priority: .utility) {
+            let list = (try? Bridge.knownCourses()) ?? []
+            await MainActor.run { self.courses = list }
+        }
+    }
+
+    @ViewBuilder
+    private var compileRow: some View {
+        if !courses.isEmpty {
+            Menu {
+                ForEach(courses, id: \.self) { course in
+                    Menu(course) {
+                        Button("Compile") {
+                            model.perform { _ = try Bridge.compile(course: course) }
+                        }
+                        Button("Compile + auto-fix errors") {
+                            model.perform { _ = try Bridge.build(course: course) }
+                        }
+                        Button("Open latest PDF") {
+                            model.perform { _ = try Bridge.openPDF(course: course) }
+                        }
+                    }
+                }
+            } label: {
+                Label("Compile a course…", systemImage: "doc.richtext")
+            }
+            .disabled(model.needsRepo || model.busy)
+        }
     }
 
     // MARK: - Header

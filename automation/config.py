@@ -10,6 +10,10 @@ DEFAULTS = {
     "settle_seconds": 4,
     "claude_bin": "claude",
     "log_file": Path.home() / "ScribeTeX-Inbox" / ".scribetex" / "ingest.log",
+    # Opt-in: after a note is filed, compile its course (plain compile, no LLM
+    # auto-fix) so a broken transcription surfaces immediately. Off by default —
+    # compilation needs a TeX toolchain and adds time to each note.
+    "auto_compile": False,
 }
 
 _ENV = {
@@ -18,8 +22,10 @@ _ENV = {
     "settle_seconds": "SCRIBETEX_SETTLE_SECONDS",
     "claude_bin": "SCRIBETEX_CLAUDE_BIN",
     "log_file": "SCRIBETEX_AUTOMATION_LOG",
+    "auto_compile": "SCRIBETEX_AUTO_COMPILE",
 }
 _INT_KEYS = {"sweep_seconds", "settle_seconds"}
+_BOOL_KEYS = {"auto_compile"}
 _PATH_KEYS = {"inbox_dir", "log_file"}
 
 
@@ -47,6 +53,12 @@ def load_config(env=None, toml_path=None) -> dict:
                 f"{_ENV[k]} must be an integer number of seconds; "
                 f"got {cfg[k]!r} which is not a valid integer"
             )
+    for k in _BOOL_KEYS:
+        v = cfg[k]
+        if isinstance(v, str):
+            cfg[k] = v.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            cfg[k] = bool(v)
     for k in _PATH_KEYS:
         cfg[k] = Path(cfg[k]).expanduser()
     return cfg

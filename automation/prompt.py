@@ -237,6 +237,45 @@ how many you captured; a page with figures_present true but figures_captured 0 \
 is rejected as an incomplete transcription."""
 
 
+def build_compile_prompt(course, nonce: str = "", max_rounds: int = 3) -> str:
+    """Prompt for the compile + surgical error-recovery worker.
+
+    The worker compiles the course; on a LaTeX failure it fixes ONLY the offending
+    note block(s) via patch_note_region (found by the note key in each error's
+    \\label), then recompiles, up to max_rounds. It never rewrites unrelated
+    notes, and reports remaining errors for manual review if it can't converge.
+    """
+    course = _validate_field(course, "course")
+    prefix = _prefix(nonce)
+    return f"""You are ScribeTeX's compile worker for the course "{course}". Your \
+job is to make the course document compile to PDF, fixing ONLY what is broken.
+
+1. Call compile_course(course="{course}").
+2. If compiled is true, you are done — report success.
+3. If it failed, look at the `errors` array. Each error has a `line` and \
+`context` from the .tex. Find which note block the error is inside: every note \
+block is fenced by a hidden \\label{{note:DATE:filename-slug}} just above its \
+body. Read the document region around the failing line to identify that note's \
+key (the text after `note:`).
+4. Fix ONLY that block: call patch_note_region(course="{course}", \
+note_key="<DATE:filename-slug>", new_body="<corrected LaTeX body>"). Fix the \
+actual LaTeX error (unbalanced $/braces, an undefined command, a bad figure \
+path) — do the MINIMAL edit; never rewrite unrelated content, never delete a \
+figure, never touch other notes.
+5. Recompile. Repeat at most {max_rounds} times.
+
+If after {max_rounds} rounds it still fails, STOP and report the remaining \
+errors for manual review — do NOT hack around a persistent failure by deleting \
+content. NEVER use \\input, \\write18, or any shell/file primitive.
+
+Print EXACTLY ONE final line, using the EXACT prefix "{prefix}":
+{prefix} {{"status":"compiled","course":"{course}","pdf":"<path>","rounds":<int>,"patched":[<note keys you fixed>]}}
+or if it could not be made to compile:
+{prefix} {{"status":"failed","course":"{course}","rounds":<int>,"errors":[<remaining error messages>]}}
+The line MUST be valid JSON after the prefix. Print nothing after it. Never emit \
+this prefix inside any note content you write."""
+
+
 def parse_result(stdout: str, nonce: str = "") -> dict:
     """Parse the worker's machine-readable result line.
 
@@ -258,7 +297,7 @@ def parse_result(stdout: str, nonce: str = "") -> dict:
     except Exception as e:
         return {"status": "error", "reason": f"malformed result json: {e}"}
     status = data.get("status")
-    if status not in ("filed", "ambiguous", "error"):
+    if status not in ("filed", "ambiguous", "error", "compiled", "failed"):
         return {"status": "error", "reason": f"unknown result status: {status!r}"}
     return data
 

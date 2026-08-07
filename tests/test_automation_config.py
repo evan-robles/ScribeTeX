@@ -10,6 +10,14 @@ def test_defaults_when_no_env_no_toml():
     assert cfg["sweep_seconds"] == 600
     assert cfg["settle_seconds"] == 4
     assert cfg["claude_bin"] == "claude"
+    assert cfg["auto_compile"] is False
+
+
+def test_auto_compile_env_coercion():
+    for val, expected in [("true", True), ("1", True), ("on", True),
+                          ("false", False), ("0", False), ("", False)]:
+        cfg = config.load_config(env={"SCRIBETEX_AUTO_COMPILE": val}, toml_path=None)
+        assert cfg["auto_compile"] is expected, val
 
 
 def test_env_overrides(tmp_path):

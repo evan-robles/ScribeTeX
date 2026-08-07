@@ -18,8 +18,6 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -29,6 +27,7 @@ if _SRC.is_dir() and str(_SRC) not in sys.path:
 
 from scribetex.config import notes_root
 from scribetex.classify import course_slug
+from scribetex.compile import compile_course as _compile_course
 
 
 def _resolve_main_tex(args) -> Path | None:
@@ -45,46 +44,9 @@ def main() -> int:
     args = ap.parse_args()
 
     main_tex = _resolve_main_tex(args)
-    if main_tex is None or not main_tex.exists():
-        print(json.dumps({"compiled": False,
-                          "error": f"main.tex not found: {main_tex}"}, indent=2))
-        return 1
-
-    for tool in ("pdflatex", "biber"):
-        if shutil.which(tool) is None:
-            print(json.dumps({
-                "compiled": False,
-                "error": f"'{tool}' not found on PATH. Install a TeX distribution "
-                         f"(MacTeX / TeX Live) to compile.",
-            }, indent=2))
-            return 1
-
-    workdir = main_tex.parent
-    stem = main_tex.stem
-    steps = [
-        ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", main_tex.name],
-        ["biber", stem],
-        ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", main_tex.name],
-        ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", main_tex.name],
-    ]
-    for step in steps:
-        proc = subprocess.run(step, cwd=workdir, capture_output=True, text=True)
-        if proc.returncode != 0:
-            tail = "\n".join((proc.stdout or proc.stderr).splitlines()[-25:])
-            print(json.dumps({
-                "compiled": False,
-                "failed_step": " ".join(step),
-                "log_tail": tail,
-            }, indent=2))
-            return 1
-
-    pdf = workdir / f"{stem}.pdf"
-    print(json.dumps({
-        "compiled": True,
-        "pdf": str(pdf),
-        "exists": pdf.exists(),
-    }, indent=2))
-    return 0
+    result = _compile_course(main_tex)
+    print(json.dumps(result, indent=2))
+    return 0 if result.get("compiled") else 1
 
 
 if __name__ == "__main__":
