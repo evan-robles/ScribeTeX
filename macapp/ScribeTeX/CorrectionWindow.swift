@@ -142,7 +142,7 @@ struct CorrectionWindow: View {
         let c = course, key = selectedNoteKey
         let text = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
         let rr = reread
-        model.perform {
+        model.perform("Correcting note in \(c)") {
             _ = try Bridge.correct(course: c, noteKey: key, instruction: text, reread: rr)
         }
     }

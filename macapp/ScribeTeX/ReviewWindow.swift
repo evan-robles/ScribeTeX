@@ -181,7 +181,7 @@ private struct ReviewItemForm: View {
                 .disabled(model.busy || resolvedCourse.isEmpty)
 
                 Button(role: .destructive) {
-                    model.perform { _ = try Bridge.discard(path: item.path) }
+                    model.perform("Discarding \(item.name)") { _ = try Bridge.discard(path: item.path) }
                 } label: {
                     Label("Discard", systemImage: "trash")
                 }
@@ -251,7 +251,7 @@ private struct ReviewItemForm: View {
         let path = item.path
         let course = resolvedCourse
         let dateString = Self.format(date)
-        model.perform {
+        model.perform("Re-filing \(item.name)") {
             _ = try Bridge.refile(path: path, course: course, date: dateString)
         }
     }

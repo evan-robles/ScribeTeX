@@ -68,26 +68,26 @@ struct MenuContent: View {
                 ForEach(courses, id: \.self) { course in
                     Menu(course) {
                         Button("Compile") {
-                            model.perform { _ = try Bridge.compile(course: course) }
+                            model.perform("Compiling \(course)") { _ = try Bridge.compile(course: course) }
                         }
                         Button("Compile + auto-fix errors") {
-                            model.perform { _ = try Bridge.build(course: course) }
+                            model.perform("Building \(course)") { _ = try Bridge.build(course: course) }
                         }
                         Button("Open latest PDF") {
-                            model.perform { _ = try Bridge.openPDF(course: course) }
+                            model.perform("Opening \(course) PDF") { _ = try Bridge.openPDF(course: course) }
                         }
                         Divider()
                         Button("Generate study guide") {
-                            model.perform { _ = try Bridge.studyGuide(course: course) }
+                            model.perform("Study guide: \(course)") { _ = try Bridge.studyGuide(course: course) }
                         }
                         Button("Export flashcards (Anki TSV)") {
-                            model.perform { _ = try Bridge.flashcards(course: course) }
+                            model.perform("Flashcards: \(course)") { _ = try Bridge.flashcards(course: course) }
                         }
                         Button("Verify (flag likely errors)") {
-                            model.perform { _ = try Bridge.verify(course: course) }
+                            model.perform("Verifying \(course)") { _ = try Bridge.verify(course: course) }
                         }
                         Button("Caption figures") {
-                            model.perform { _ = try Bridge.captionFigures(course: course) }
+                            model.perform("Captioning \(course)") { _ = try Bridge.captionFigures(course: course) }
                         }
                     }
                 }
@@ -113,14 +113,28 @@ struct MenuContent: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack {
-            Image(systemName: "doc.text.fill").foregroundStyle(.tint)
-            Text("ScribeTeX").font(.headline)
-            Spacer()
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "doc.text.fill").foregroundStyle(.tint)
+                Text("ScribeTeX").font(.headline)
+                Spacer()
+                if model.busy { ProgressView().controlSize(.small) }
+            }
             if model.busy {
-                ProgressView().controlSize(.small)
+                HStack(spacing: 6) {
+                    Text("Working: \(model.busyLabel ?? "…")")
+                    Spacer()
+                    Text(Self.elapsed(model.busyElapsed)).monospacedDigit()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Seconds -> "M:SS" for the elapsed timer.
+    private static func elapsed(_ s: Int) -> String {
+        String(format: "%d:%02d", s / 60, s % 60)
     }
 
     // MARK: - Setup guard
@@ -181,7 +195,7 @@ struct MenuContent: View {
 
     private func watcherToggle(_ status: Status) -> some View {
         Button {
-            model.perform {
+            model.perform(status.watcher_running ? "Stopping watcher" : "Starting watcher") {
                 _ = status.watcher_running ? try Bridge.uninstall() : try Bridge.install()
             }
         } label: {
@@ -202,7 +216,7 @@ struct MenuContent: View {
             Menu {
                 ForEach(model.reviewItems) { item in
                     Button {
-                        model.perform { _ = try Bridge.process(item.path) }
+                        model.perform("Processing \(item.name)") { _ = try Bridge.process(item.path) }
                     } label: {
                         VStack(alignment: .leading) {
                             Text(item.name)
@@ -234,7 +248,7 @@ struct MenuContent: View {
     private var inboxRow: some View {
         Button {
             pickDirectory(title: "Choose your iPad inbox folder") { url in
-                model.perform { _ = try Bridge.setInbox(url.path) }
+                model.perform("Setting inbox") { _ = try Bridge.setInbox(url.path) }
             }
         } label: {
             Label("Pick Inbox…", systemImage: "folder")
@@ -245,7 +259,7 @@ struct MenuContent: View {
     private var processRow: some View {
         Button {
             pickFile(title: "Choose a note to file") { url in
-                model.perform { _ = try Bridge.process(url.path) }
+                model.perform("Processing \(url.lastPathComponent)") { _ = try Bridge.process(url.path) }
             }
         } label: {
             Label("Process a File…", systemImage: "doc.badge.plus")
@@ -285,7 +299,7 @@ struct MenuContent: View {
         _ = provider.loadObject(ofClass: URL.self) { url, _ in
             guard let url else { return }
             DispatchQueue.main.async {
-                model.perform { _ = try Bridge.process(url.path) }
+                model.perform("Processing \(url.lastPathComponent)") { _ = try Bridge.process(url.path) }
             }
         }
         return true

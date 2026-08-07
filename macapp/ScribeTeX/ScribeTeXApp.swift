@@ -14,10 +14,16 @@ final class AppModel: ObservableObject {
     @Published var lastError: String?
     /// True while a bridge invocation is in flight (drives the "Working…" row).
     @Published var busy: Bool = false
+    /// Human label of the in-flight action (e.g. "Re-filing Bio 05"), shown with
+    /// a live elapsed timer while busy. nil when idle.
+    @Published var busyLabel: String?
+    /// Seconds the current action has been running, updated ~1/s for the timer.
+    @Published var busyElapsed: Int = 0
     /// Set when the user still needs to point the app at the repo checkout.
     @Published var needsRepo: Bool = Bridge.repoRoot == nil
 
     private var timer: Timer?
+    private var busyTimer: Timer?
     /// True while a refresh's bridge calls are outstanding, so a 15s poll tick
     /// can't stack a second (and third…) Process on top of a slow/hung bridge.
     private var refreshing = false
@@ -114,9 +120,31 @@ final class AppModel: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
-    /// Run a bridge action off the main thread, then refresh the UI.
-    func perform(_ action: @escaping () throws -> Void) {
+    /// Notify when a named action finishes, so a long/backgrounded operation
+    /// (popover closed) still tells the user it's done — and whether it failed.
+    private func notifyActionDone(label: String, failure: String?) {
+        let content = UNMutableNotificationContent()
+        content.title = "ScribeTeX"
+        content.body = failure == nil ? "\(label) — done." : "\(label) — failed."
+        content.sound = .default
+        // Unique id per completion so successive finishes don't overwrite.
+        let request = UNNotificationRequest(
+            identifier: "scribetex.action-done.\(label)",
+            content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Run a bridge action off the main thread, then refresh the UI. `label`
+    /// names the action for the "Working: <label> M:SS" row and the completion
+    /// notification, so a long/backgrounded operation is never a silent spinner.
+    func perform(_ label: String = "Working", _ action: @escaping () throws -> Void) {
         busy = true
+        busyLabel = label
+        busyElapsed = 0
+        busyTimer?.invalidate()
+        busyTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.busyElapsed += 1 }
+        }
         Task.detached(priority: .userInitiated) {
             let failure: String?
             do {
@@ -125,13 +153,17 @@ final class AppModel: ObservableObject {
             } catch {
                 failure = Self.describe(error)
             }
-            await MainActor.run { self.finish(failure: failure) }
+            await MainActor.run { self.finish(label: label, failure: failure) }
         }
     }
 
     /// Apply an action's outcome on the main actor, then refresh.
-    private func finish(failure: String?) {
+    private func finish(label: String, failure: String?) {
         busy = false
+        busyLabel = nil
+        busyTimer?.invalidate()
+        busyTimer = nil
+        notifyActionDone(label: label, failure: failure)
         if let failure { lastError = failure }
         refresh()
     }
