@@ -25,3 +25,4 @@ dist/
 build_*.out
 orbitals_*.out
 input_configs.yaml
+.superpowers/
