@@ -154,8 +154,10 @@ private struct ReviewItemForm: View {
                 }
             }
 
-            labeledField("Section", text: $section, placeholder: "e.g. 03-derivatives")
-            labeledField("Subsection", text: $subsection, placeholder: "optional")
+            labeledField("Section", text: $section,
+                         placeholder: "blank → agent picks from the note")
+            labeledField("Subsection", text: $subsection,
+                         placeholder: "blank → agent picks from the note")
 
             HStack {
                 Text("Date").frame(width: 90, alignment: .leading)

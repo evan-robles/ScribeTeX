@@ -22,6 +22,26 @@ def test_refile_prompt_hardcodes_placement():
     assert "do not" in p.lower() and "ambiguous" in p.lower()
 
 
+def test_refile_prompt_blank_section_delegates_to_agent():
+    # Blank section/subsection -> the agent must determine them itself (course +
+    # date stay fixed). A blank field must NOT produce an empty \section{}.
+    p = prompt.build_refile_prompt("/x/n.pdf", "Bio", "", "", "2026-08-06")
+    low = p.lower()
+    assert "Bio" in p and "2026-08-06" in p
+    assert "determine a top-level section" in low
+    assert "determine a concise subsection" in low
+    # Course/date fixed; the agent is told it chooses the section/subsection.
+    assert "do not second-guess" in low
+
+
+def test_refile_prompt_mixed_section_given_subsection_blank():
+    p = prompt.build_refile_prompt("/x/n.pdf", "Bio", "Receptors", "", "2026-08-06")
+    low = p.lower()
+    assert 'section "Receptors" exactly' in p or "Receptors" in p
+    assert "determine a concise subsection" in low  # subsection delegated
+    assert "determine a top-level section" not in low  # section was given
+
+
 def test_refile_files_and_moves(tmp_path):
     cfg = _cfg(tmp_path)
     pdf = _parked(tmp_path)
@@ -34,6 +54,40 @@ def test_refile_files_and_moves(tmp_path):
     assert not pdf.exists()                                   # moved out of NeedsReview
     assert list((tmp_path / "Done" / "2026-08-06").glob("n.pdf"))
     assert not (tmp_path / "NeedsReview" / "n.pdf.review.json").exists()  # sidecar gone
+
+
+def test_refile_files_with_blank_section(tmp_path):
+    cfg = _cfg(tmp_path)
+    pdf = _parked(tmp_path, "blank.pdf")
+    # Agent chose section/subsection; result echoes them.
+    filed_line = (prompt.RESULT_PREFIX +
+                  ' {"status":"filed","course":"Bio","section":"Nervous System",'
+                  '"subsection":"Receptors","date":"2026-08-06","target":"/x/main.tex","figures":2}')
+    res = appcli._refile(cfg, str(pdf), "Bio", "", "", "2026-08-06",
+                         invoke_fn=lambda *a, **k: filed_line)
+    assert res["ok"] is True
+    assert not pdf.exists()
+    assert list((tmp_path / "Done" / "2026-08-06").glob("blank.pdf"))
+
+
+def test_refile_argparser_section_optional(tmp_path, monkeypatch, capsys):
+    # `refile` must parse with --section/--subsection omitted (course+date only).
+    pdf = _parked(tmp_path, "opt.pdf")
+    monkeypatch.setenv("SCRIBETEX_INBOX", str(tmp_path))
+    filed_line = (prompt.RESULT_PREFIX +
+                  ' {"status":"filed","course":"Bio","section":"S","subsection":"Sub",'
+                  '"date":"2026-08-06","target":"/x/main.tex","figures":0}')
+    monkeypatch.setattr(appcli._ingest, "process_inbox", lambda *a, **k: [])
+    # Patch the worker invocation so no real claude runs.
+    import automation.prompt as _p
+    monkeypatch.setattr(appcli, "_refile",
+                        lambda cfg, path, course, section, subsection, date, **k:
+                        {"ok": True, "filed": {"section": section, "subsection": subsection}})
+    rc = appcli.main(["refile", "--path", str(pdf), "--course", "Bio",
+                      "--date", "2026-08-06"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0 and out["ok"] is True
+    assert out["filed"]["section"] == "" and out["filed"]["subsection"] == ""
 
 
 def test_refile_bad_date_errors_and_keeps(tmp_path):

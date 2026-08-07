@@ -257,8 +257,12 @@ def main(argv=None) -> int:
     sub.add_parser("install")
     sub.add_parser("uninstall")
     rp = sub.add_parser("refile")
-    for a in ("--path", "--course", "--section", "--subsection", "--date"):
+    for a in ("--path", "--course", "--date"):
         rp.add_argument(a, required=True)
+    # Section/subsection are optional: blank means the agent decides them from
+    # the note content (course + date are the only user-required placement).
+    rp.add_argument("--section", default="")
+    rp.add_argument("--subsection", default="")
     dp = sub.add_parser("discard"); dp.add_argument("--path", required=True)
     args = ap.parse_args(argv)
 

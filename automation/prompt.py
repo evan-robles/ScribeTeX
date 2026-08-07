@@ -103,21 +103,43 @@ The {RESULT_PREFIX} line MUST be valid JSON after the prefix. Print nothing afte
 def build_refile_prompt(note_path, course, section, subsection, date) -> str:
     note_path = _validate_note_path(note_path)
     course = _validate_field(course, "course")
-    section = _validate_field(section, "section")
-    subsection = _validate_field(subsection, "subsection")
-    return f"""You are ScribeTeX's re-file worker. The placement is ALREADY \
-decided by the user — do not second-guess it.
+    section = _validate_field(section, "section").strip()
+    subsection = _validate_field(subsection, "subsection").strip()
+
+    # Course and date are user-confirmed and fixed. Section/subsection are
+    # OPTIONAL: when the user leaves them blank, the agent determines them from
+    # the note's content itself (like auto-ingest) — otherwise a blank field
+    # would file the note under an empty \section{} heading.
+    if section:
+        section_instr = f'Use the top-level section "{section}" exactly.'
+        section_json = section
+    else:
+        section_instr = ("Determine a top-level SECTION title yourself from the "
+                         "note's content (a concise theme naming the note's "
+                         "overall topic). Do NOT leave it blank.")
+        section_json = "<section you chose>"
+    if subsection:
+        subsection_instr = f'Use the subsection "{subsection}" exactly.'
+        subsection_json = subsection
+    else:
+        subsection_instr = ("Determine a concise SUBSECTION title yourself from "
+                            "the note's content.")
+        subsection_json = "<subsection you chose>"
+
+    return f"""You are ScribeTeX's re-file worker. The COURSE and DATE are \
+decided by the user — do not second-guess them.
 
 Note file: {note_path}
 Course: {course}
-Section: {section}
-Subsection: {subsection}
 Class date: {date}
+Section: {section_instr}
+Subsection: {subsection_instr}
 
 Call prepare_note(source="file", ref="{note_path}"), transcribe every page to \
-LaTeX per the brief, then call write_section with course "{course}", section \
-"{section}", subsection "{subsection}", date "{date}". \
-Do NOT report ambiguous — the user has supplied all placement values.
+LaTeX per the brief, then call resolve_placement and write_section to file it \
+under course "{course}" and date "{date}" with the section/subsection above. \
+Do NOT report ambiguous — the course and date are fixed and you choose any \
+section/subsection not given.
 
 FIGURES: crop the original by default — embed ANY drawing, sketch, diagram, or \
 labelled figure as a cropped image via save_figure (fractional bbox) + \
@@ -127,7 +149,7 @@ prose only as a last resort. NEVER redraw or invent a hand-drawn diagram as \
 TikZ from imagination — when in doubt, crop the original.
 
 Print EXACTLY ONE final line:
-{RESULT_PREFIX} {{"status":"filed","course":"{course}","section":"{section}","subsection":"{subsection}","date":"{date}","target":"<path>","figures":<int>}}
+{RESULT_PREFIX} {{"status":"filed","course":"{course}","section":"{section_json}","subsection":"{subsection_json}","date":"{date}","target":"<path>","figures":<int>}}
 or on failure:
 {RESULT_PREFIX} {{"status":"error","reason":"<what failed>"}}"""
 
