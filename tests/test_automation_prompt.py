@@ -48,6 +48,18 @@ def test_allowed_tools_args_authorizes_mcp_headless():
     assert "bypassPermissions" in args
 
 
+def test_allowed_tools_args_denies_escalation_tools():
+    # A note is untrusted input; even under bypassPermissions the worker must
+    # never expose shell/network/sub-agent tools that a prompt-injected note
+    # could use to escape the transcription task.
+    args = prompt.allowed_tools_args()
+    assert "--disallowedTools" in args
+    for dangerous in ("Bash", "WebFetch", "WebSearch", "Task"):
+        assert dangerous in args
+    # The denylist must come last so the variadic flag consumes only tool names.
+    assert args.index("--disallowedTools") > args.index("--permission-mode")
+
+
 def test_parse_filed():
     out = 'blah\nSCRIBETEX_RESULT: {"status":"filed","course":"Bio","target":"/x/main.tex"}\ndone'
     r = prompt.parse_result(out)

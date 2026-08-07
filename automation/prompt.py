@@ -4,18 +4,34 @@ import json
 
 RESULT_PREFIX = "SCRIBETEX_RESULT:"
 
+# Escalation tools the unattended worker must NEVER get, even under
+# bypassPermissions. A handwritten note is UNTRUSTED input (its transcribed
+# content is fed back into the prompt); if a note carried a prompt-injection
+# payload, these are the tools that would let it escape the transcription task
+# into arbitrary shell execution, network egress, or spawning sub-agents.
+# Verified against the real `claude` CLI: --disallowedTools removes these from
+# the toolset even when --permission-mode bypassPermissions is set, so the note
+# cannot re-enable them.
+DISALLOWED_TOOLS = ["Bash", "WebFetch", "WebSearch", "Task", "KillShell"]
+
+
 def allowed_tools_args() -> list:
-    """CLI tokens authorizing the ingest worker's MCP tools for `claude -p`.
+    """CLI tokens scoping the ingest worker's tools for headless `claude -p`.
 
     Headless `claude -p` is non-interactive and cannot prompt for permission, so
-    without this the very first tool call (prepare_note) is blocked and
-    transcription never starts. `--allowedTools mcp__ScribeTeX__*` was verified
-    NOT to authorize the plugin's MCP tools in headless mode (the call is still
-    blocked); `--permission-mode bypassPermissions` does permit them, so that is
-    what the unattended worker uses. This runs only against the ScribeTeX MCP
-    tools + Read/Write in a worker we construct, on a note file we chose.
+    the very first ScribeTeX MCP tool call (prepare_note) is otherwise blocked
+    and transcription never starts. `--allowedTools mcp__ScribeTeX__*` was
+    verified NOT to authorize the plugin's MCP tools in headless mode (the call
+    stays blocked); `--permission-mode bypassPermissions` does permit them.
+
+    Because bypassPermissions would ALSO permit dangerous escalation tools, we
+    pair it with an explicit --disallowedTools denylist (DISALLOWED_TOOLS) so a
+    prompt-injected note cannot reach a shell, the network, or sub-agents. The
+    worker is thus scoped to the ScribeTeX MCP tools + Read/Write it needs to
+    transcribe and file one note, and nothing that can escape that box.
     """
-    return ["--permission-mode", "bypassPermissions"]
+    return ["--permission-mode", "bypassPermissions",
+            "--disallowedTools", *DISALLOWED_TOOLS]
 
 
 class UnsafeNotePathError(ValueError):
