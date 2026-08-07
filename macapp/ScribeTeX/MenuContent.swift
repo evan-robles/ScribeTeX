@@ -76,10 +76,23 @@ struct MenuContent: View {
                         Button("Open latest PDF") {
                             model.perform { _ = try Bridge.openPDF(course: course) }
                         }
+                        Divider()
+                        Button("Generate study guide") {
+                            model.perform { _ = try Bridge.studyGuide(course: course) }
+                        }
+                        Button("Export flashcards (Anki TSV)") {
+                            model.perform { _ = try Bridge.flashcards(course: course) }
+                        }
+                        Button("Verify (flag likely errors)") {
+                            model.perform { _ = try Bridge.verify(course: course) }
+                        }
+                        Button("Caption figures") {
+                            model.perform { _ = try Bridge.captionFigures(course: course) }
+                        }
                     }
                 }
             } label: {
-                Label("Compile a course…", systemImage: "doc.richtext")
+                Label("Course tools…", systemImage: "doc.richtext")
             }
             .disabled(model.needsRepo || model.busy)
         }

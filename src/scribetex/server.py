@@ -256,6 +256,53 @@ def _save_figure(course: str, page_image: str, bbox, name: str) -> dict:
     return res
 
 
+def _write_study_aid(course: str, kind: str, content: str) -> dict:
+    """Write a study guide (as a note block) or flashcards (a .tsv sidecar)."""
+    slug = course_slug(course)
+    if not slug:
+        return {"written": False, "error": f"course {course!r} has no usable slug"}
+    course_dir = notes_root() / slug
+    target = course_dir / "main.tex"
+    if not target.exists():
+        return {"written": False, "error": f"course document not found: {target}"}
+    if kind == "flashcards":
+        out = course_dir / "flashcards.tsv"
+        out.write_text(content, encoding="utf-8")
+        return {"written": True, "kind": "flashcards", "path": str(out)}
+    # guide: file it as a note block dated today-ish under a stable key so it can
+    # be regenerated (replace) rather than duplicated.
+    try:
+        body = check_body(content)
+    except UnsafeLatexError as e:
+        return {"written": False, "error": str(e)}
+    with _lock_for(target):
+        try:
+            new_text, _ = insert_note(
+                target.read_text(encoding="utf-8"), body,
+                "0001-01-01", "study-guide", on_duplicate="replace")
+        except MalformedDocumentError as e:
+            return {"written": False, "error": f"malformed document: {e}"}
+        tmp = target.with_suffix(".tex.tmp")
+        tmp.write_text(new_text, encoding="utf-8")
+        os.replace(tmp, target)
+    return {"written": True, "kind": "guide", "path": str(target)}
+
+
+def _read_course(course: str) -> dict:
+    """Return a course document's filed content + structure for a read-pass
+    (study guide, verification, figure captioning)."""
+    from .placement import entries_body, list_notes
+    slug = course_slug(course)
+    if not slug:
+        return {"ok": False, "error": f"course {course!r} has no usable slug"}
+    target = notes_root() / slug / "main.tex"
+    if not target.exists():
+        return {"ok": False, "error": f"course document not found: {target}"}
+    text = target.read_text(encoding="utf-8")
+    return {"ok": True, "course": course, "target_path": str(target),
+            "notes": list_notes(text), "body": entries_body(text)}
+
+
 def _compile_course(course: str) -> dict:
     """Compile a course's main.tex to PDF, returning structured errors on failure.
 
@@ -395,6 +442,33 @@ def save_figure(course: str, page_image: str, bbox: list[float], name: str) -> d
     snippet)} or {"saved": false, "error": ...}. \\graphicspath already points at
     ExtFiles/, so \\includegraphics{<name>} resolves without a path prefix."""
     return _save_figure(course, page_image, bbox, name)
+
+
+@mcp.tool
+def write_study_aid(course: str, kind: str, content: str) -> dict:
+    """Write a study aid for a course. kind="guide" files `content` (LaTeX body
+    with its own \\section) into the document as a regenerable Study Guide block;
+    kind="flashcards" writes `content` (tab-separated question<TAB>answer lines)
+    to flashcards.tsv next to the course, ready to import into Anki.
+
+    Args:
+        course: the course NAME.
+        kind: "guide" or "flashcards".
+        content: LaTeX body (guide) or TSV text (flashcards).
+    Returns {"written": true, kind, path} or {"written": false, "error": ...}."""
+    return _write_study_aid(course, kind, content)
+
+
+@mcp.tool
+def read_course(course: str) -> dict:
+    """Read a course document's filed content and structure, for a whole-course
+    pass (study guide, verification, figure captioning). Read-only.
+
+    Args:
+        course: the course NAME.
+    Returns {"ok": true, course, target_path, notes: [{key,date,sections}],
+    body: "<all filed note blocks as LaTeX>"} or {"ok": false, "error": ...}."""
+    return _read_course(course)
 
 
 @mcp.tool

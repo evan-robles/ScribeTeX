@@ -7,6 +7,10 @@ EXPECTED = {
     "write_section": {"course", "latex_body", "date", "source_name",
                       "course_number", "on_duplicate"},
     "save_figure": {"course", "page_image", "bbox", "name"},
+    "compile_course": {"course"},
+    "patch_note_region": {"course", "note_key", "new_body"},
+    "read_course": {"course"},
+    "write_study_aid": {"course", "kind", "content"},
 }
 
 

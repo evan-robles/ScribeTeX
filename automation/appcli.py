@@ -236,6 +236,26 @@ def _course_main_tex(course):
     return notes_root() / slug / "main.tex"
 
 
+def _deliver_pdf(cfg, pdf_path) -> str | None:
+    """Copy a compiled PDF into the configured output_dir (e.g. an iCloud folder
+    for the iPad). No-op if output_dir is unset or the PDF is missing. Returns
+    the delivered path, or None."""
+    out = (cfg.get("output_dir") or "").strip()
+    if not out or not pdf_path:
+        return None
+    src = Path(pdf_path)
+    if not src.exists():
+        return None
+    dest_dir = Path(out).expanduser()
+    try:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / src.name
+        shutil.copy2(src, dest)
+        return str(dest)
+    except OSError:
+        return None
+
+
 def _compile(cfg, course) -> dict:
     """Plain compile (no LLM): run the toolchain, return structured result."""
     from scribetex.compile import compile_course
@@ -243,6 +263,10 @@ def _compile(cfg, course) -> dict:
     if target is None:
         return {"ok": False, "error": f"course {course!r} has no usable slug"}
     res = compile_course(target)
+    if res.get("compiled"):
+        delivered = _deliver_pdf(cfg, res.get("pdf"))
+        if delivered:
+            res["delivered_to"] = delivered
     return {"ok": bool(res.get("compiled")), **res}
 
 
@@ -279,7 +303,11 @@ def _build(cfg, course, *, invoke_fn=None) -> dict:
     # Fast path: if it already compiles, skip the (expensive) LLM worker.
     first = compile_course(target)
     if first.get("compiled"):
-        return {"ok": True, "compiled": True, "pdf": first.get("pdf"), "rounds": 0}
+        out = {"ok": True, "compiled": True, "pdf": first.get("pdf"), "rounds": 0}
+        d = _deliver_pdf(cfg, first.get("pdf"))
+        if d:
+            out["delivered_to"] = d
+        return out
     nonce = new_nonce()
     if invoke_fn is None:
         import subprocess
@@ -292,8 +320,14 @@ def _build(cfg, course, *, invoke_fn=None) -> dict:
     stdout = invoke_fn(build_compile_prompt(course, nonce), cfg["claude_bin"])
     result = parse_result(stdout, nonce)
     if result.get("status") == "compiled":
-        return {"ok": True, "compiled": True, "pdf": result.get("pdf"),
-                "rounds": result.get("rounds"), "patched": result.get("patched", [])}
+        out = {"ok": True, "compiled": True, "pdf": result.get("pdf"),
+               "rounds": result.get("rounds"), "patched": result.get("patched", [])}
+        # The recovered PDF path from the worker may be relative; recompute from
+        # the known target so delivery uses an absolute path.
+        d = _deliver_pdf(cfg, str(target.with_suffix(".pdf")))
+        if d:
+            out["delivered_to"] = d
+        return out
     return {"ok": False, "compiled": False,
             "error": "could not auto-fix compile errors",
             "errors": result.get("errors", []), "rounds": result.get("rounds")}
@@ -345,6 +379,55 @@ def _correct(cfg, course, note_key, instruction, reread=False, *, invoke_fn=None
     if result.get("status") != "corrected":
         return {"ok": False, "error": result.get("reason", "correction did not complete")}
     return {"ok": True, "corrected": result}
+
+
+def _run_course_worker(cfg, course, prompt_builder, ok_status, *, invoke_fn=None) -> dict:
+    """Shared driver for whole-course worker passes (study aid / verify / caption).
+    Launches the headless worker with the ScribeTeX MCP server and returns the
+    parsed result on the expected ok_status."""
+    from .prompt import (parse_result, allowed_tools_args, mcp_config_args, new_nonce)
+    from .envpath import augmented_env
+    target = _course_main_tex(course)
+    if target is None or not target.exists():
+        return {"ok": False, "error": f"course document not found for {course!r}"}
+    nonce = new_nonce()
+    if invoke_fn is None:
+        import subprocess
+        def invoke_fn(prompt_text, claude_bin):
+            proc = subprocess.run(
+                [claude_bin, "-p", prompt_text,
+                 *mcp_config_args(), *allowed_tools_args()],
+                capture_output=True, text=True, timeout=1800, env=augmented_env())
+            return proc.stdout or ""
+    try:
+        prompt_text = prompt_builder(nonce)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    result = parse_result(invoke_fn(prompt_text, cfg["claude_bin"]), nonce)
+    if result.get("status") != ok_status:
+        return {"ok": False, "error": result.get("reason", f"{ok_status} did not complete")}
+    return {"ok": True, "result": result}
+
+
+def _study_guide(cfg, course, kind="guide", *, invoke_fn=None) -> dict:
+    from .prompt import build_studyguide_prompt
+    return _run_course_worker(
+        cfg, course, lambda n: build_studyguide_prompt(course, kind, n),
+        "study_aid", invoke_fn=invoke_fn)
+
+
+def _verify(cfg, course, note_key="", *, invoke_fn=None) -> dict:
+    from .prompt import build_verify_prompt
+    return _run_course_worker(
+        cfg, course, lambda n: build_verify_prompt(course, note_key, n),
+        "verified", invoke_fn=invoke_fn)
+
+
+def _caption(cfg, course, *, invoke_fn=None) -> dict:
+    from .prompt import build_caption_prompt
+    return _run_course_worker(
+        cfg, course, lambda n: build_caption_prompt(course, n),
+        "captioned", invoke_fn=invoke_fn)
 
 
 def _emit(obj) -> int:
@@ -409,6 +492,12 @@ def main(argv=None) -> int:
     for a in ("--course", "--note-key", "--instruction"):
         kp.add_argument(a, required=True)
     kp.add_argument("--reread", action="store_true")
+    gp = sub.add_parser("study-guide"); gp.add_argument("--course", required=True)
+    fp = sub.add_parser("flashcards"); fp.add_argument("--course", required=True)
+    vp = sub.add_parser("verify")
+    vp.add_argument("--course", required=True)
+    vp.add_argument("--note-key", default="")
+    xp = sub.add_parser("caption-figures"); xp.add_argument("--course", required=True)
     args = ap.parse_args(argv)
 
     try:
@@ -475,6 +564,18 @@ def _dispatch(args) -> int:
         cfg = _load()
         return _emit(_correct(cfg, args.course, args.note_key, args.instruction,
                               reread=args.reread))
+    if args.cmd == "study-guide":
+        cfg = _load()
+        return _emit(_study_guide(cfg, args.course, kind="guide"))
+    if args.cmd == "flashcards":
+        cfg = _load()
+        return _emit(_study_guide(cfg, args.course, kind="flashcards"))
+    if args.cmd == "verify":
+        cfg = _load()
+        return _emit(_verify(cfg, args.course, args.note_key))
+    if args.cmd == "caption-figures":
+        cfg = _load()
+        return _emit(_caption(cfg, args.course))
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 

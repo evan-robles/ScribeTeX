@@ -322,6 +322,95 @@ or on failure:
 The line MUST be valid JSON after the prefix. Print nothing after it."""
 
 
+def build_studyguide_prompt(course, kind, nonce: str = "") -> str:
+    """Prompt for the study-aid worker. kind is "guide" (a summary sheet written
+    into the course as a new \\section) or "flashcards" (an Anki-importable TSV
+    written next to the course). Reads the whole course via read_course."""
+    course = _validate_field(course, "course")
+    kind = _validate_field(kind, "kind")
+    prefix = _prefix(nonce)
+    if kind == "flashcards":
+        task = ("Produce Anki-importable FLASHCARDS covering the course's key "
+                "facts, definitions, formulas, and relationships. Call "
+                "write_study_aid(course, kind=\"flashcards\", content=<TSV>) where "
+                "content is tab-separated 'question<TAB>answer' lines, one card per "
+                "line — plain text, no LaTeX environments, math as $...$.")
+        done = "flashcards"
+    else:
+        task = ("Produce a concise STUDY-GUIDE summary of the whole course — the "
+                "big ideas, key definitions/formulas, and how topics connect — as "
+                "LaTeX body (its own \\section{Study Guide}/\\subsection headings). "
+                "Call write_study_aid(course, kind=\"guide\", content=<LaTeX body>).")
+        done = "guide"
+    return f"""You are ScribeTeX's study-aid worker for the course "{course}".
+
+1. Call read_course(course="{course}") to get the filed notes (body + structure).
+2. {task}
+Base it ONLY on what the notes actually contain — do not invent material. Never \
+use \\input, \\write18, or any shell/file primitive.
+
+Print EXACTLY ONE final line, using the EXACT prefix "{prefix}":
+{prefix} {{"status":"study_aid","course":"{course}","kind":"{done}","path":"<file written>"}}
+or on failure:
+{prefix} {{"status":"error","reason":"<what failed>"}}
+The line MUST be valid JSON after the prefix. Print nothing after it."""
+
+
+def build_verify_prompt(course, note_key="", nonce: str = "") -> str:
+    """Prompt for the self-review verification pass: re-read filed note(s) and
+    flag likely transcription errors by wrapping the suspect span in
+    \\uncertain{{...}} via patch_note_region. No external tools — this catches
+    copy errors across ALL note content."""
+    course = _validate_field(course, "course")
+    prefix = _prefix(nonce)
+    scope = (f'the single note with key "{_validate_field(note_key, "note_key")}"'
+             if note_key else "EACH filed note")
+    return f"""You are ScribeTeX's verification worker for the course "{course}". \
+You flag likely TRANSCRIPTION errors so the user can check them — you do not \
+rewrite content or invent fixes.
+
+1. Call read_course(course="{course}") to get the filed notes.
+2. For {scope}, re-read its LaTeX critically and look for likely copy/transcription \
+errors: unbalanced math delimiters or braces, a \\ce{{...}} reaction that does not \
+balance, an equation that is dimensionally nonsensical, a number that contradicts \
+the surrounding text, a symbol that looks mis-read.
+3. For each SUSPECT span, wrap ONLY that span in \\uncertain{{...}} by calling \
+patch_note_region(course="{course}", note_key="<the note's key>", \
+new_body="<the note body with suspects wrapped>"). Change NOTHING else — do not \
+"fix" the content, only FLAG it (the user decides). If a note has no suspects, \
+leave it untouched.
+Never use \\input, \\write18, or any shell/file primitive.
+
+Print EXACTLY ONE final line, using the EXACT prefix "{prefix}":
+{prefix} {{"status":"verified","course":"{course}","flagged":<int>,"notes_flagged":[<keys>]}}
+or on failure:
+{prefix} {{"status":"error","reason":"<what failed>"}}
+The line MUST be valid JSON after the prefix. Print nothing after it."""
+
+
+def build_caption_prompt(course, nonce: str = "") -> str:
+    """Prompt for the figure-caption + dedup pass over a course."""
+    course = _validate_field(course, "course")
+    prefix = _prefix(nonce)
+    return f"""You are ScribeTeX's figure worker for the course "{course}".
+
+1. Call read_course(course="{course}") to get the filed notes.
+2. For each \\includegraphics that lacks a caption, add a concise \\caption{{...}} \
+(wrap it in a figure environment if needed) describing the figure from the \
+SURROUNDING text — do not invent detail not implied by the notes. Apply edits per \
+note via patch_note_region (change only captions/figure wrapping, nothing else).
+3. If the SAME image file is included in more than one place (a duplicate crop \
+filed twice), note it in your report — do not delete anything, just flag the \
+duplicate filenames.
+Never use \\input, \\write18, or any shell/file primitive.
+
+Print EXACTLY ONE final line, using the EXACT prefix "{prefix}":
+{prefix} {{"status":"captioned","course":"{course}","captioned":<int>,"duplicates":[<filenames>]}}
+or on failure:
+{prefix} {{"status":"error","reason":"<what failed>"}}
+The line MUST be valid JSON after the prefix. Print nothing after it."""
+
+
 def parse_result(stdout: str, nonce: str = "") -> dict:
     """Parse the worker's machine-readable result line.
 
@@ -344,7 +433,7 @@ def parse_result(stdout: str, nonce: str = "") -> dict:
         return {"status": "error", "reason": f"malformed result json: {e}"}
     status = data.get("status")
     if status not in ("filed", "ambiguous", "error", "compiled", "failed",
-                      "corrected"):
+                      "corrected", "study_aid", "verified", "captioned"):
         return {"status": "error", "reason": f"unknown result status: {status!r}"}
     return data
 

@@ -11,6 +11,7 @@ def test_defaults_when_no_env_no_toml():
     assert cfg["settle_seconds"] == 4
     assert cfg["claude_bin"] == "claude"
     assert cfg["auto_compile"] is False
+    assert cfg["output_dir"] == ""
 
 
 def test_auto_compile_env_coercion():

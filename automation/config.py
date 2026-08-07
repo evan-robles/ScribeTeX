@@ -14,6 +14,9 @@ DEFAULTS = {
     # auto-fix) so a broken transcription surfaces immediately. Off by default —
     # compilation needs a TeX toolchain and adds time to each note.
     "auto_compile": False,
+    # After a successful compile, copy the course PDF here (empty = disabled).
+    # Point it at an iCloud/Dropbox-synced folder to get the PDF onto the iPad.
+    "output_dir": "",
 }
 
 _ENV = {
@@ -23,6 +26,7 @@ _ENV = {
     "claude_bin": "SCRIBETEX_CLAUDE_BIN",
     "log_file": "SCRIBETEX_AUTOMATION_LOG",
     "auto_compile": "SCRIBETEX_AUTO_COMPILE",
+    "output_dir": "SCRIBETEX_OUTPUT_DIR",
 }
 _INT_KEYS = {"sweep_seconds", "settle_seconds"}
 _BOOL_KEYS = {"auto_compile"}

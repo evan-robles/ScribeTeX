@@ -236,6 +236,24 @@ enum Bridge {
         if reread { args.append("--reread") }
         return try action(args, timeout: slowTimeout)
     }
+
+    // Whole-course LLM passes (each spends Claude tokens; slow).
+    @discardableResult
+    static func studyGuide(course: String) throws -> ActionResult {
+        try action(["study-guide", "--course", course], timeout: slowTimeout)
+    }
+    @discardableResult
+    static func flashcards(course: String) throws -> ActionResult {
+        try action(["flashcards", "--course", course], timeout: slowTimeout)
+    }
+    @discardableResult
+    static func verify(course: String) throws -> ActionResult {
+        try action(["verify", "--course", course], timeout: slowTimeout)
+    }
+    @discardableResult
+    static func captionFigures(course: String) throws -> ActionResult {
+        try action(["caption-figures", "--course", course], timeout: slowTimeout)
+    }
 }
 
 enum BridgeError: LocalizedError {

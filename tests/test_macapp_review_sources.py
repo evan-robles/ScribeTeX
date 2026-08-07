@@ -25,6 +25,12 @@ def test_bridge_has_correct_and_listnotes():
         assert cmd in b, f"Bridge missing {cmd}"
 
 
+def test_bridge_has_course_tools():
+    b = (APP / "Bridge.swift").read_text()
+    for cmd in ("study-guide", "flashcards", "verify", "caption-figures"):
+        assert cmd in b, f"Bridge missing {cmd}"
+
+
 def test_correction_window_source_exists():
     assert (APP / "CorrectionWindow.swift").exists()
 

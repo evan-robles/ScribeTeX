@@ -67,6 +67,12 @@ def document_sections(main_tex: str) -> list[str]:
     return _SECTION_RE.findall(main_tex[start:end])
 
 
+def entries_body(main_tex: str) -> str:
+    """The text between the ENTRIES markers (all filed note blocks)."""
+    start, end = _entries_region(main_tex)
+    return main_tex[start:end]
+
+
 def list_notes(main_tex: str) -> list[dict]:
     """Each filed note as {key, date, sections}, in document order.
 
