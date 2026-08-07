@@ -13,6 +13,20 @@ def test_identity_changes_with_size(tmp_path):
     assert p.name in id1
 
 
+def test_identity_stable_across_inplace_rewrite_same_size(tmp_path):
+    # A cloud-sync in-place rewrite bumps mtime but not inode/size; the identity
+    # must stay stable so an already-filed note is not re-ingested (H5).
+    import os
+    p = tmp_path / "note.pdf"
+    p.write_bytes(b"AAAAA")
+    id1 = state.identity(p)
+    # Rewrite same-size content in place and bump mtime.
+    p.write_bytes(b"BBBBB")
+    os.utime(p, (10**9, 10**9))  # far-future mtime
+    id2 = state.identity(p)
+    assert id1 == id2  # inode + size unchanged -> same key despite new mtime
+
+
 def test_seen_roundtrip(tmp_path):
     sf = tmp_path / ".scribetex" / "seen.json"
     assert state.load_seen(sf) == set()

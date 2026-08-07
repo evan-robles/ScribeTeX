@@ -187,13 +187,15 @@ def _refile(cfg, path, course, section, subsection, date, *, invoke_fn=None) -> 
     result = parse_result(stdout, nonce)
     if result.get("status") != "filed":
         return {"ok": False, "error": result.get("reason", "re-file did not complete")}
-    # Trust "filed" only if the worker actually wrote a target file — an
-    # authenticated result whose target doesn't exist means nothing was written,
-    # so keep the note in NeedsReview rather than moving it to Done (data loss).
+    # Trust "filed" only if the worker actually wrote the course document: an
+    # existing main.tex inside the notes root. An authenticated result whose
+    # target is missing or points elsewhere means nothing was legitimately
+    # written, so keep the note in NeedsReview rather than moving it (data loss).
     target = result.get("target")
-    if not target or not Path(target).expanduser().exists():
+    if not _ingest._valid_written_target(target):
         return {"ok": False,
-                "error": f"worker reported filed but target is missing: {target!r}"}
+                "error": f"worker reported filed but target is not a valid "
+                         f"course main.tex under the notes root: {target!r}"}
     dest_dir = _config.done_dir(cfg) / date_iso
     dest_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(dest_dir / src.name))

@@ -6,8 +6,25 @@ from pathlib import Path
 
 
 def identity(path) -> str:
+    """A stable idempotency key for an inbox file: name:size:inode.
+
+    Uses the inode (st_ino), NOT mtime: a cloud-sync client (iCloud/Dropbox) can
+    rewrite a file in place and bump its mtime without the note actually changing,
+    which under an mtime key would silently re-ingest an already-filed note. The
+    inode is stable across such in-place rewrites and across an in-place rename,
+    and it changes for a genuinely new file. name+size are included so the rare
+    case of a recycled inode still needs a matching name and size to collide.
+    """
     st = Path(path).stat()
-    return f"{Path(path).name}:{st.st_size}:{st.st_mtime_ns}"
+    return f"{Path(path).name}:{st.st_size}:{st.st_ino}"
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write via a temp file + os.replace so a crash mid-write can't truncate
+    the existing JSON (which would lose the whole seen-set / error map)."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
 
 
 def load_seen(state_file) -> set:
@@ -25,7 +42,7 @@ def mark_seen(state_file, key) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     seen = load_seen(p)
     seen.add(key)
-    p.write_text(json.dumps(sorted(seen)))
+    _atomic_write_text(p, json.dumps(sorted(seen)))
 
 
 def _load_error_counts(error_file) -> dict:
@@ -50,7 +67,7 @@ def bump_error_count(error_file, key) -> int:
     p.parent.mkdir(parents=True, exist_ok=True)
     counts = _load_error_counts(p)
     counts[key] = counts.get(key, 0) + 1
-    p.write_text(json.dumps(counts))
+    _atomic_write_text(p, json.dumps(counts))
     return counts[key]
 
 
@@ -60,7 +77,7 @@ def clear_error_count(error_file, key) -> None:
     if key in counts:
         del counts[key]
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(counts))
+        _atomic_write_text(p, json.dumps(counts))
 
 
 def _default_alive(pid: int) -> bool:

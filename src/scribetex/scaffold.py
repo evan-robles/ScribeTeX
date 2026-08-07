@@ -5,6 +5,7 @@ from pathlib import Path
 from .preamble import render_preamble
 from .placement import ENTRIES_START, ENTRIES_END
 from .classify import course_slug
+from .sanitize import escape_title
 
 DEFAULT_FOOTER_NAME = "Robles"
 DEFAULT_AUTHOR = "Evan S. Robles"
@@ -18,6 +19,11 @@ def build_main_tex(course_name: str, course_number: str,
     """Full standalone document matching the canonical template: preamble, a
     titlepage (course name + number + author + affiliation), a plain-styled
     table of contents, and an empty topic-section ENTRIES region."""
+    # course_name/course_number are untrusted (they can originate from note
+    # content); they are placed in LaTeX argument positions on the title page and
+    # the running header, so escape LaTeX specials to prevent breakout/injection.
+    course_name = escape_title(course_name)
+    course_number = escape_title(course_number)
     preamble = render_preamble(footer_name=footer_name, course_number=course_number)
     return (
         preamble

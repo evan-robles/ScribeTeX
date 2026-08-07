@@ -20,13 +20,25 @@ def _result_line(d):
     return f'{prompt.RESULT_PREFIX} {json.dumps(d)}'
 
 
-def test_filed_moves_to_done(tmp_path):
+def _valid_target(tmp_path, monkeypatch, course="Course"):
+    """Create a real main.tex under a notes root and point env at it, so a
+    status=filed result passes route_file's target validation (main.tex under
+    notes_root)."""
+    nroot = tmp_path / "notes_root"
+    (nroot / course).mkdir(parents=True, exist_ok=True)
+    main = nroot / course / "main.tex"
+    main.write_text("doc")
+    monkeypatch.setenv("SCRIBETEX_NOTES_ROOT", str(nroot))
+    return str(main)
+
+
+def test_filed_moves_to_done(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path)
     note = _pdf(tmp_path / "note.pdf")
-    written = tmp_path / "course_main.tex"; written.write_text("doc")
+    written = _valid_target(tmp_path, monkeypatch, "Bio")
     invoke = lambda p, b: _result_line(
         {"status": "filed", "course": "Bio", "section": "R", "subsection": "S",
-         "date": "2026-08-06", "target": str(written), "figures": 0})
+         "date": "2026-08-06", "target": written, "figures": 0})
     out = ingest.process_inbox(
         cfg, invoke_fn=invoke, notify_fn=lambda *a: None,
         ready_fn=lambda p, s: True, now_fn=lambda: __import__("datetime").datetime(2026, 8, 6),
@@ -35,6 +47,24 @@ def test_filed_moves_to_done(tmp_path):
     assert not note.exists()
     moved = list((tmp_path / "Done" / "2026-08-06").glob("note.pdf"))
     assert len(moved) == 1
+
+
+def test_filed_with_target_outside_notesroot_is_not_trusted(tmp_path, monkeypatch):
+    # A status=filed whose target is NOT inside the notes root (or not main.tex)
+    # must be treated as an error — the note stays in the inbox, not moved to Done.
+    cfg = _cfg(tmp_path)
+    note = _pdf(tmp_path / "sneaky.pdf")
+    monkeypatch.setenv("SCRIBETEX_NOTES_ROOT", str(tmp_path / "notes_root"))
+    (tmp_path / "notes_root").mkdir()
+    outside = tmp_path / "elsewhere.tex"; outside.write_text("x")  # wrong name+loc
+    invoke = lambda p, b: _result_line(
+        {"status": "filed", "course": "C", "date": "2026-08-06",
+         "target": str(outside)})
+    out = ingest.process_inbox(cfg, invoke_fn=invoke, notify_fn=lambda *a: None,
+                               ready_fn=lambda p, s: True,
+                               now_fn=lambda: __import__("datetime").datetime(2026, 8, 6))
+    assert all(r["outcome"] != "filed" for r in out)
+    assert note.exists()  # not moved
 
 
 def test_ambiguous_moves_to_needsreview_with_sidecar(tmp_path):
@@ -62,13 +92,13 @@ def test_error_leaves_in_place(tmp_path):
     assert note.exists()  # stays for retry
 
 
-def test_seen_prevents_reprocessing(tmp_path):
+def test_seen_prevents_reprocessing(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path)
     _pdf(tmp_path / "once.pdf")
-    written = tmp_path / "c_main.tex"; written.write_text("doc")
+    written = _valid_target(tmp_path, monkeypatch, "C")
     calls = []
     invoke = lambda p, b: calls.append(p) or _result_line(
-        {"status": "filed", "course": "C", "date": "2026-08-06", "target": str(written)})
+        {"status": "filed", "course": "C", "date": "2026-08-06", "target": written})
     ingest.process_inbox(cfg, invoke_fn=invoke, notify_fn=lambda *a: None,
                          ready_fn=lambda p, s: True,
                          now_fn=lambda: __import__("datetime").datetime(2026, 8, 6))
@@ -153,7 +183,7 @@ def test_error_notify_first_and_giveup_only_middle_suppressed(tmp_path):
     assert "gave up" in notify_calls[1][0].lower()
 
 
-def test_error_count_cleared_on_success(tmp_path):
+def test_error_count_cleared_on_success(tmp_path, monkeypatch):
     cfg = _cfg(tmp_path)
     note = _pdf(tmp_path / "flaky.pdf")
     now = lambda: __import__("datetime").datetime(2026, 8, 6)
@@ -165,9 +195,9 @@ def test_error_count_cleared_on_success(tmp_path):
     ef = config.error_file(cfg)
     assert state.get_error_count(ef, key) == 1
 
-    written = tmp_path / "ok_main.tex"; written.write_text("doc")
+    written = _valid_target(tmp_path, monkeypatch, "C")
     ok_invoke = lambda p, b: _result_line(
-        {"status": "filed", "course": "C", "date": "2026-08-06", "target": str(written)})
+        {"status": "filed", "course": "C", "date": "2026-08-06", "target": written})
     ingest.process_inbox(cfg, invoke_fn=ok_invoke, notify_fn=lambda *a: None,
                          ready_fn=lambda p, s: True, now_fn=now)
     assert state.get_error_count(ef, key) == 0

@@ -122,6 +122,16 @@ private struct ReviewItemForm: View {
     @State private var section: String = ""
     @State private var subsection: String = ""
     @State private var date: Date = Date()
+    /// Set once the user edits any field, so a late-arriving course list can't
+    /// clobber their input when we re-run prefill.
+    @State private var userEdited = false
+    /// Whether prefill has run against a NON-EMPTY course list yet. The first
+    /// onAppear often fires before courses load (async), so the course picker
+    /// would be seeded against []; we re-seed when courses arrive.
+    @State private var prefilledWithCourses = false
+    /// True while prefill() is mutating state, so its own writes aren't mistaken
+    /// for user edits by the onChange handlers.
+    @State private var prefilling = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -188,6 +198,22 @@ private struct ReviewItemForm: View {
         }
         .padding(.horizontal, 12)
         .onAppear(perform: prefill)
+        // Courses load asynchronously; if the first prefill ran before they
+        // arrived, re-seed once they do — unless the user has already edited.
+        .onChange(of: courses) { _ in
+            if !userEdited && !prefilledWithCourses { prefill() }
+        }
+        // Any manual edit locks out further auto-prefill (prefill's own writes
+        // are excluded via the `prefilling` guard).
+        .onChange(of: courseSelection) { _ in markEdited() }
+        .onChange(of: newCourse) { _ in markEdited() }
+        .onChange(of: section) { _ in markEdited() }
+        .onChange(of: subsection) { _ in markEdited() }
+        .onChange(of: date) { _ in markEdited() }
+    }
+
+    private func markEdited() {
+        if !prefilling { userEdited = true }
     }
 
     private func labeledField(_ label: String, text: Binding<String>, placeholder: String) -> some View {
@@ -210,10 +236,13 @@ private struct ReviewItemForm: View {
     }
 
     /// Seed the form from the item's parked guesses (and today's date if none).
+    /// Runs on appear and again once courses load (unless the user has edited),
+    /// so a guessed course that already exists is SELECTED rather than offered as
+    /// a new course — which otherwise created a duplicate course dir on re-file.
     private func prefill() {
+        prefilling = true
+        defer { prefilling = false }
         if let guess = item.course, !guess.isEmpty {
-            // If the guessed course already exists, select it; otherwise offer
-            // it as a pre-filled new course.
             if courses.contains(guess) {
                 courseSelection = guess
             } else {
@@ -228,6 +257,7 @@ private struct ReviewItemForm: View {
         section = item.section ?? ""
         subsection = item.subsection ?? ""
         date = Self.parseDate(item.date) ?? Date()
+        prefilledWithCourses = !courses.isEmpty
     }
 
     private func refile() {

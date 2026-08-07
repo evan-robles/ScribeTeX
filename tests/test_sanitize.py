@@ -32,6 +32,10 @@ def test_escape_title_brace_breakout_neutralized():
     "\\write18{x}", "\\input{a}", "\\include{a}", "\\openout1=x",
     "\\end{document}", "\\csname foo\\endcsname", "\\def\\x{y}",
     "text \\INPUT{X}",  # case-insensitive
+    "\\directlua{os.execute('rm -rf ~')}",  # LuaTeX shell exec
+    "\\latelua{...}", "\\usepackage{shellesc}", "\\RequirePackage{x}",
+    "\\special{...}", "\\endinput", "\\shellescape",
+    "text ^^J more",  # TeX catcode-notation escape
 ])
 def test_check_body_rejects_dangerous(bad):
     with pytest.raises(UnsafeLatexError):

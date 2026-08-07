@@ -75,16 +75,37 @@ def _write_review_sidecar(nr_dir, note_name, reason, kind, result) -> Path:
     return sidecar
 
 
+def _valid_written_target(target) -> bool:
+    """True iff `target` is an existing main.tex inside the notes root.
+
+    A worker's status=filed is only trustworthy if it actually wrote the course
+    document. Requiring the path to resolve INSIDE notes_root and be named
+    main.tex rejects both a never-written target and a target pointing at an
+    unrelated file, so a note is never moved to Done on a false 'filed' claim.
+    """
+    if not target:
+        return False
+    try:
+        from scribetex.config import notes_root
+        t = Path(target).expanduser().resolve()
+        if t.name != "main.tex" or not t.exists():
+            return False
+        t.relative_to(notes_root().resolve())
+        return True
+    except (ValueError, OSError):
+        return False
+
+
 def route_file(note_path, result, cfg, now_fn=None) -> str:
     now_fn = now_fn or _dt.datetime.now
     note = Path(note_path)
     status = result.get("status", "error")
     if status == "filed":
-        # Trust "filed" only if the worker actually wrote the target; otherwise
-        # treat it as an error and leave the note in the inbox for retry, rather
-        # than moving a never-written note to Done (silent loss).
-        target = result.get("target")
-        if not target or not Path(target).expanduser().exists():
+        # Trust "filed" only if the worker actually wrote a plausible target:
+        # a file named main.tex, existing, INSIDE the notes root. This rejects a
+        # result pointing anywhere else (a never-written note, or a target coaxed
+        # to an unrelated path) so we don't move a note to Done on a false claim.
+        if not _valid_written_target(result.get("target")):
             return "error"
         day = now_fn().strftime("%Y-%m-%d")
         dest_dir = _config.done_dir(cfg) / day
@@ -130,6 +151,15 @@ def process_inbox(cfg, invoke_fn=None, notify_fn=None, ready_fn=None,
     invoke_fn = invoke_fn or (lambda p, b: invoke_claude(p, b))
     notify_fn = notify_fn or notify
     ready_fn = ready_fn or (lambda p, s: readiness.is_ready(p, s))
+    settle = cfg["settle_seconds"]
+
+    # Do the readiness settle-check BEFORE taking the lock. is_ready sleeps
+    # settle_seconds per file; running it under the lock serialized bursts and
+    # made concurrent launchd triggers find the lock held and drop silently.
+    # Filtering here means the (fast) locked section only does invoke + routing.
+    ready_notes = [n for n in _candidates(cfg) if ready_fn(n, settle)]
+    if not ready_notes:
+        return []
 
     lock = _config.lock_file(cfg)
     if not state.acquire_lock(lock):
@@ -139,12 +169,13 @@ def process_inbox(cfg, invoke_fn=None, notify_fn=None, ready_fn=None,
         sf = _config.state_file(cfg)
         ef = _config.error_file(cfg)
         seen = state.load_seen(sf)
-        settle = cfg["settle_seconds"]
-        for note in _candidates(cfg):
+        for note in ready_notes:
+            # A concurrent run (or the pre-lock window) may have already handled
+            # and moved this note; skip if it's gone or already seen.
+            if not note.exists():
+                continue
             key = state.identity(note)
             if key in seen:
-                continue
-            if not ready_fn(note, settle):
                 continue
             invoked = invoke_fn(str(note), cfg["claude_bin"])
             # Default invoke_claude returns (stdout, nonce); test fakes may

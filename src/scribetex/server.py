@@ -207,7 +207,10 @@ def _write_section(course: str, section_title: str, subsection_title: str,
     with _lock_for(target):
         if not target.exists():
             # Prefer an explicit course_number; else infer a digit-bearing token
-            # from the course name; else fall back to the course name.
+            # from the course name; else fall back to the course name. The course
+            # name and number are also untrusted and land on the title page /
+            # header — scaffold_course escapes them for those argument positions
+            # while still slugging the directory from the raw name.
             number = (course_number.strip()
                       or next((t for t in course.split()
                                if any(c.isdigit() for c in t)), course))

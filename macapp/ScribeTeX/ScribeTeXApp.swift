@@ -18,6 +18,9 @@ final class AppModel: ObservableObject {
     @Published var needsRepo: Bool = Bridge.repoRoot == nil
 
     private var timer: Timer?
+    /// True while a refresh's bridge calls are outstanding, so a 15s poll tick
+    /// can't stack a second (and third…) Process on top of a slow/hung bridge.
+    private var refreshing = false
     /// Last observed `needs_review_count`, used to fire a notification only when
     /// the count *rises* (a new note landed in review), not on every poll.
     /// `nil` until the first successful status read, so the initial load does
@@ -46,6 +49,10 @@ final class AppModel: ObservableObject {
             reviewItems = []
             return
         }
+        // Skip if a prior refresh's bridge calls are still outstanding — a poll
+        // tick must not pile another Process on a slow/hung bridge.
+        guard !refreshing else { return }
+        refreshing = true
         Task.detached(priority: .userInitiated) {
             // Compute everything off the main actor, then apply in a single hop.
             // Only Sendable values (Status, [ReviewItem], String) cross the
@@ -65,7 +72,10 @@ final class AppModel: ObservableObject {
                 items = []
                 failure = Self.describe(error)
             }
-            await MainActor.run { self.apply(status: fetched, items: items, failure: failure) }
+            await MainActor.run {
+                self.refreshing = false
+                self.apply(status: fetched, items: items, failure: failure)
+            }
         }
     }
 

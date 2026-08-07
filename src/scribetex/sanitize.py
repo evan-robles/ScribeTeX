@@ -50,15 +50,23 @@ def escape_title(title: str) -> str:
 
 
 # Body-level constructs an untrusted transcription must never carry. These enable
-# shell execution, arbitrary file reads/writes at compile time, or breaking out of
-# the document body. Matched case-insensitively on the command name, with a
-# trailing boundary (?![A-Za-z]) so a forbidden command isn't matched as a prefix
-# of a legitimate longer one — e.g. \include must NOT flag \includegraphics, and
-# \write must NOT flag \write18-free \writefoo (write18 is listed explicitly).
+# shell execution (TeX \write18 AND LuaTeX \directlua/\latelua etc.), arbitrary
+# file reads/writes at compile time, package loading, or breaking out of the
+# document body. Matched case-insensitively on the command name, with a trailing
+# boundary (?![A-Za-z]) so a forbidden command isn't matched as a prefix of a
+# legitimate longer one — e.g. \include must NOT flag \includegraphics.
+#
+# NOTE: -no-shell-escape alone does NOT neutralize LuaLaTeX's \directlua (that
+# needs lualatex --nosocket and disabling the lua io/os libraries); this content
+# denylist is the primary guard and the compile skill's flags are defense in depth.
 _FORBIDDEN_BODY = re.compile(
-    r"\\(?:write18|input|include|openin|openout|read|write|"
-    r"immediate|catcode|csname|def|let|expandafter)(?![A-Za-z])"
-    r"|\\end\s*\{\s*document\s*\}",
+    r"\\(?:write18|shellescape|input|include|openin|openout|read|write|"
+    r"immediate|catcode|csname|def|let|expandafter|endinput|"
+    r"usepackage|requirepackage|special|"
+    r"directlua|latelua|luaexec|"
+    r"pdfliteral|pdfliteralshellescape|pdffiledump|pdfmdfivesum)(?![A-Za-z])"
+    r"|\\end\s*\{\s*document\s*\}"
+    r"|\^\^",  # TeX catcode-notation escape (e.g. ^^J, ^^25) on raw source
     re.IGNORECASE,
 )
 

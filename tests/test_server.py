@@ -134,6 +134,17 @@ def test_write_rejects_end_document_in_body(root):
     assert r["written"] is False
 
 
+def test_scaffold_escapes_untrusted_course_name(root):
+    # The course name lands on the title page verbatim; a `}` must not break out.
+    server._write_section("Bad}\\input{/etc/passwd", "Topic", "Sub",
+                          "body", "2026-08-06", course_number="N")
+    # dir is slugged from the raw name; the title page must carry the escaped form
+    from scribetex.classify import course_slug
+    main_tex = (root / course_slug("Bad}\\input{/etc/passwd") / "main.tex").read_text()
+    assert "\\input{/etc/passwd}" not in main_tex
+    assert "\\}" in main_tex
+
+
 def test_write_rejects_empty_course_slug(root):
     r = server._write_section("!!!", "Topic", "Sub", "body", "2026-08-06")
     assert r["written"] is False
