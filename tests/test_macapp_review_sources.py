@@ -31,6 +31,19 @@ def test_bridge_has_course_tools():
         assert cmd in b, f"Bridge missing {cmd}"
 
 
+def test_bridge_has_frontend_commands():
+    b = (APP / "Bridge.swift").read_text()
+    for cmd in ("courses-info", "read-flashcards", "compile-guide"):
+        assert cmd in b, f"Bridge missing {cmd}"
+
+
+def test_models_has_courseinfo_and_flashcard():
+    m = (APP / "Models.swift").read_text()
+    assert "struct CourseInfo" in m and "struct Flashcard" in m
+    # NoteRef gained figure/uncertain counts for the notes list.
+    assert "let figures: Int" in m and "let uncertain: Int" in m
+
+
 def test_correction_window_source_exists():
     assert (APP / "CorrectionWindow.swift").exists()
 

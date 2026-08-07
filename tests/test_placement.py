@@ -58,3 +58,13 @@ def test_list_notes_returns_key_date_sections():
     assert notes[0]["date"] == "2026-08-06"
     assert notes[0]["sections"] == ["Receptors", "Muscles"]
     assert notes[1]["sections"] == ["Area"]
+
+
+def test_list_notes_counts_figures_and_uncertain():
+    from scribetex.placement import list_notes
+    body = ("\\section{A}\n\\includegraphics{x}\ntext \\uncertain{42} "
+            "\\includegraphics{y}\n")
+    doc = _doc_with([("bio.pdf", "2026-08-06", body)])
+    n = list_notes(doc)[0]
+    assert n["figures"] == 2
+    assert n["uncertain"] == 1

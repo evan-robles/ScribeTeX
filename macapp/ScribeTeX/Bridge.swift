@@ -254,6 +254,27 @@ enum Bridge {
     static func captionFigures(course: String) throws -> ActionResult {
         try action(["caption-figures", "--course", course], timeout: slowTimeout)
     }
+
+    // Read-only frontend data (fast).
+    static func coursesInfo() throws -> [CourseInfo] {
+        try JSONDecoder().decode(CoursesInfoList.self,
+                                 from: run(["courses-info"])).courses
+    }
+    static func readFlashcards(course: String) throws -> [Flashcard] {
+        try JSONDecoder().decode(FlashcardList.self,
+                                 from: run(["read-flashcards", "--course", course])).cards
+    }
+    @discardableResult
+    static func compileGuide(course: String) throws -> ActionResult {
+        try action(["compile-guide", "--course", course], timeout: 300)
+    }
+
+    /// Generate the study guide then compile it, so the PDF is ready to preview.
+    @discardableResult
+    static func generateAndCompileGuide(course: String) throws -> ActionResult {
+        _ = try action(["study-guide", "--course", course], timeout: slowTimeout)
+        return try compileGuide(course: course)
+    }
 }
 
 enum BridgeError: LocalizedError {

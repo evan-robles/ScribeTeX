@@ -270,6 +270,75 @@ def _compile(cfg, course) -> dict:
     return {"ok": bool(res.get("compiled")), **res}
 
 
+def _courses_info(cfg) -> dict:
+    """Course metadata for the main-window sidebar/tabs: note count, needs-review
+    count, and whether a PDF/guide/flashcards artifact exists yet."""
+    from scribetex.discovery import known_courses
+    from scribetex.placement import list_notes
+    from scribetex.config import notes_root
+    nr = _config.needs_review_dir(cfg)
+    needs = 0
+    if nr.exists():
+        needs = sum(1 for p in nr.iterdir()
+                    if p.is_file() and p.suffix not in (".json", ".txt"))
+    out = []
+    for name in known_courses(notes_root()):
+        main = _course_main_tex(name)
+        note_count = 0
+        if main and main.exists():
+            note_count = len(list_notes(main.read_text(encoding="utf-8")))
+        pdf = main.with_suffix(".pdf") if main else None
+        guide = (main.parent / "study-guide.pdf") if main else None
+        tsv = (main.parent / "flashcards.tsv") if main else None
+        fc = 0
+        if tsv and tsv.exists():
+            fc = sum(1 for line in tsv.read_text(encoding="utf-8").splitlines()
+                     if line.strip())
+        out.append({
+            "name": name, "note_count": note_count, "needs_review": needs,
+            "has_pdf": bool(pdf and pdf.exists()), "pdf_path": str(pdf) if pdf else "",
+            "has_guide": bool(guide and guide.exists()),
+            "guide_pdf": str(guide) if guide else "",
+            "flashcard_count": fc,
+        })
+    return {"ok": True, "courses": out}
+
+
+def _read_flashcards(cfg, course) -> dict:
+    """Parse a course's flashcards.tsv into {q, a} cards for the in-app deck."""
+    main = _course_main_tex(course)
+    if main is None:
+        return {"ok": False, "error": f"course {course!r} has no usable slug"}
+    tsv = main.parent / "flashcards.tsv"
+    if not tsv.exists():
+        return {"ok": False, "error": f"no flashcards yet for {course}"}
+    cards = []
+    for line in tsv.read_text(encoding="utf-8").splitlines():
+        if "\t" not in line:
+            continue
+        q, a = line.split("\t", 1)
+        cards.append({"q": q, "a": a})
+    return {"ok": True, "cards": cards}
+
+
+def _compile_guide(cfg, course) -> dict:
+    """Compile the standalone study-guide.tex (not main.tex) to PDF."""
+    from scribetex.compile import compile_course
+    main = _course_main_tex(course)
+    if main is None:
+        return {"ok": False, "error": f"course {course!r} has no usable slug"}
+    guide = main.parent / "study-guide.tex"
+    if not guide.exists():
+        return {"ok": False,
+                "error": f"no study guide yet for {course}; generate it first"}
+    res = compile_course(guide)
+    if res.get("compiled"):
+        d = _deliver_pdf(cfg, res.get("pdf"))
+        if d:
+            res["delivered_to"] = d
+    return {"ok": bool(res.get("compiled")), **res}
+
+
 def _open_pdf(cfg, course) -> dict:
     """Return the course PDF path (and open it) if it exists."""
     import subprocess
@@ -521,6 +590,9 @@ def main(argv=None) -> int:
     vp.add_argument("--course", required=True)
     vp.add_argument("--note-key", default="")
     xp = sub.add_parser("caption-figures"); xp.add_argument("--course", required=True)
+    sub.add_parser("courses-info")
+    rf = sub.add_parser("read-flashcards"); rf.add_argument("--course", required=True)
+    cg = sub.add_parser("compile-guide"); cg.add_argument("--course", required=True)
     args = ap.parse_args(argv)
 
     try:
@@ -599,6 +671,15 @@ def _dispatch(args) -> int:
     if args.cmd == "caption-figures":
         cfg = _load()
         return _emit(_caption(cfg, args.course))
+    if args.cmd == "courses-info":
+        cfg = _load()
+        return _emit(_courses_info(cfg))
+    if args.cmd == "read-flashcards":
+        cfg = _load()
+        return _emit(_read_flashcards(cfg, args.course))
+    if args.cmd == "compile-guide":
+        cfg = _load()
+        return _emit(_compile_guide(cfg, args.course))
     return _emit({"ok": False, "error": f"unknown command: {args.cmd}"})
 
 

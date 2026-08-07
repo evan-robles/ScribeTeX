@@ -85,8 +85,13 @@ def list_notes(main_tex: str) -> list[dict]:
         key = m.group(1)
         block_start = m.end()
         block_end = labels[i + 1].start() if i + 1 < len(labels) else len(main_tex)
-        sections = _SECTION_RE.findall(main_tex[block_start:block_end])
-        out.append({"key": key, "date": key.split(":", 1)[0], "sections": sections})
+        block = main_tex[block_start:block_end]
+        sections = _SECTION_RE.findall(block)
+        out.append({
+            "key": key, "date": key.split(":", 1)[0], "sections": sections,
+            "figures": block.count("\\includegraphics"),
+            "uncertain": block.count("\\uncertain"),
+        })
     return out
 
 
