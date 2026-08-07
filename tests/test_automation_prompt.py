@@ -96,10 +96,23 @@ def test_mcp_config_args_registers_scribetex_server(tmp_path):
     assert args[0] == "--mcp-config"
     assert "--strict-mcp-config" in args
     cfg = json.loads(open(args[1]).read())
-    server = cfg["mcpServers"]["ScribeTeX"]
+    # Server name is UNIQUE per invocation (ScribeTeX_<hex>) to defeat claude's
+    # by-name tool-schema cache; there is exactly one server and it is portable.
+    names = list(cfg["mcpServers"].keys())
+    assert len(names) == 1 and names[0].startswith("ScribeTeX_")
+    server = cfg["mcpServers"][names[0]]
     assert server["command"] == "python3"
     assert server["args"] == ["-m", "scribetex.server"]
     assert server["env"]["PYTHONPATH"] == str(tmp_path / "src")
+
+
+def test_mcp_config_args_names_are_unique():
+    import json
+    a1 = prompt.mcp_config_args()
+    a2 = prompt.mcp_config_args()
+    n1 = list(json.loads(open(a1[1]).read())["mcpServers"])[0]
+    n2 = list(json.loads(open(a2[1]).read())["mcpServers"])[0]
+    assert n1 != n2
 
 
 def test_allowed_tools_args_authorizes_mcp_headless():

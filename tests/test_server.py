@@ -91,6 +91,17 @@ def test_write_uses_course_number_in_scaffold(root):
     assert r"{\Huge\bfseries Organic Chemistry\par}" in main_tex
 
 
+def test_prepare_note_accepts_path_via_source_fallback(root):
+    # Robustness for a flaky MCP client that only exposes `source`: passing the
+    # PATH as source (with no ref) must still render pages.
+    import fitz
+    pdf = root / "fallback.pdf"
+    d = fitz.open(); d.new_page(); d.save(str(pdf)); d.close()
+    r = server._prepare_note(source=str(pdf))
+    assert len(r["page_images"]) == 1
+    assert "error" not in r
+
+
 def test_prepare_note_goodnotes_alias(root):
     import fitz
     pdf = root / "gn.pdf"

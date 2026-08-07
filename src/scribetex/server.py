@@ -95,7 +95,17 @@ for duplicate detection; duplicates are never silently overwritten.
 mcp = FastMCP("ScribeTeX", instructions=SERVER_INSTRUCTIONS)
 
 
+_VALID_SOURCES = {"file", "goodnotes"}
+
+
 def _prepare_note(source: str = "file", ref: str = "") -> dict:
+    # Robustness: the path is supposed to arrive in `ref`, but if a caller (or a
+    # flaky client that only exposes `source`) passes the PATH as `source`
+    # instead, recover gracefully — treat a source that isn't a known source
+    # keyword as the ref, and default source to "file". This makes prepare_note
+    # work whether the path comes in via ref OR source.
+    if source not in _VALID_SOURCES and not ref:
+        ref, source = source, "file"
     try:
         pages = get_source(source).fetch_pages(ref)
     except (FileNotFoundError, ValueError, NotImplementedError) as e:
@@ -253,9 +263,13 @@ def prepare_note(ref: str, source: str = "file") -> dict:
     Args:
         ref: REQUIRED. The filesystem path to the note (PDF or image). For a PDF,
             every page is rendered to a PNG. Pass the full path here — the tool
-            cannot render anything without it.
+            cannot render anything without it. (If for any reason only `source`
+            is available to you, you may pass the PATH as `source` instead and it
+            will be used as the note path.)
         source: "file" (default) for a local PDF/image path; "goodnotes" is an
-            alias for the same (GoodNotes PDF/PNG/JPG/HEIC exports).
+            alias for the same (GoodNotes PDF/PNG/JPG/HEIC exports). If given a
+            filesystem path instead of "file"/"goodnotes", it is treated as the
+            note path (fallback when ref is unavailable).
     Returns a dict with: page_images (PNG paths to read and transcribe),
     brief (the rules you must follow when transcribing), notes_root, and
     known_courses. On bad input returns {"error": ..., "page_images": []}.
